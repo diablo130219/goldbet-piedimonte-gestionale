@@ -175,3 +175,41 @@ body{background:radial-gradient(ellipse 63% 60% at 87% -4%,rgba(185,135,30,.16),
 .grid-4.blue-distinta-stats>.panel:first-child{border-color:rgba(98,170,255,.45);background:linear-gradient(140deg,#0f356b,#142846)}
 @media(max-width:1100px){.grid-4.blue-distinta-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.grid-4.blue-distinta-stats{grid-template-columns:1fr}}
+
+
+/* Differenza finale: rosso per ammanco, verde per eccedenza */
+.result-box.shortage{background:linear-gradient(135deg,#4d2230,#2a1f31);border:1px solid #a64b5c}
+.result-box.shortage .number{color:#ff8f9c}
+.result-box.surplus{background:linear-gradient(135deg,#173c35,#11292a);border:1px solid #2f8c70}
+.result-box.surplus .number{color:#7ff0c1}
+
+
+/* Colori identificativi delle due casse: separati da blu/verde/rosso e dall'oro del brand. */
+.app-layout.cash-station-1{--station-accent:#b99aff;--station-strong:#8b5fe3;--station-glow:rgba(142,95,224,.25)}
+.app-layout.cash-station-2{--station-accent:#edac81;--station-strong:#b7653e;--station-glow:rgba(201,103,52,.23)}
+.cash-toggle{background:rgba(11,14,24,.85)!important;border:1px solid #3a4053!important;padding:5px;gap:6px}
+.cash-toggle button{border:1px solid transparent;transition:background .18s,border-color .18s,box-shadow .18s,color .18s}
+.cash-toggle button.cash-one:not(.active){color:#c0a5fa;border-color:rgba(169,126,246,.2);background:rgba(139,95,227,.12)}
+.cash-toggle button.cash-two:not(.active){color:#e7a37d;border-color:rgba(216,121,72,.22);background:rgba(189,92,44,.12)}
+.cash-toggle button.cash-one.active,.cash-toggle button.cash-two.active{color:#fff!important;font-weight:900;border-width:1px;transform:none}
+.cash-toggle button.cash-one.active{background:linear-gradient(135deg,#9f77eb,#6f40bb)!important;border-color:#d8bbff!important;box-shadow:0 0 0 2px rgba(163,122,243,.12),0 8px 26px rgba(128,79,213,.33)!important}
+.cash-toggle button.cash-two.active{background:linear-gradient(135deg,#d78a5c,#a7512d)!important;border-color:#f2b38e!important;box-shadow:0 0 0 2px rgba(224,136,89,.12),0 8px 26px rgba(180,80,38,.29)!important}
+.cash-toggle button:focus-visible{outline:2px solid #fff!important;outline-offset:3px}
+.app-layout .topbar{border-bottom-color:var(--station-strong)!important}
+.app-layout .sidebar-edition{color:var(--station-accent);border-color:var(--station-glow)}
+.app-layout .sidebar-edition .edition-dot{background:var(--station-accent);box-shadow:0 0 12px var(--station-glow)}
+.app-layout .page-title .eyebrow{color:var(--station-accent)}
+/* Quadratura: ammanco rosso, eccedenza verde, anche nell'archivio e nella stampa. */
+.result-box.shortage{background:linear-gradient(125deg,#5a2634,#281b2a)!important;border:1px solid #cd596b!important}
+.result-box.shortage .number,.result-box.shortage .caps{color:#ff929f!important}
+.result-box.surplus{background:linear-gradient(125deg,#1b5140,#102e2a)!important;border:1px solid #36a27b!important}
+.result-box.surplus .number,.result-box.surplus .caps{color:#83f0bb!important}
+.result-box.ok{background:linear-gradient(125deg,#163e32,#102d28)!important;border:1px solid #389a72!important}
+.archive-balance{display:inline-flex;align-items:center;border-radius:10px;padding:7px 11px;font-weight:850;white-space:nowrap;font-size:12px}
+.archive-balance.shortage,.archive-difference-row.shortage .value{color:#ff909f;background:rgba(255,94,115,.13)}
+.archive-balance.surplus,.archive-difference-row.surplus .value{color:#84ecc0;background:rgba(38,202,143,.13)}
+.archive-balance.balanced,.archive-difference-row.balanced .value{color:#84ecc0;background:rgba(38,202,143,.13)}
+.archive-difference-row .value{border-radius:9px;padding:5px 9px}
+@media print{
+ .archive-balance,.archive-difference-row .value{background:transparent!important;border:1px solid #888!important;color:#111!important}
+}
