@@ -11,6 +11,6 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verifica sintassi Python
-        run: python -m py_compile server.py
+        run: python -m py_compile server.py storage.py
       - name: Esegui test casse e accessi
         run: python -m unittest discover -s tests -v
