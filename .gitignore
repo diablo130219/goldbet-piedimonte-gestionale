@@ -1,0 +1,16 @@
+# Non caricare MAI dati dei clienti o segreti su GitHub
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+/data/*
+!/data/LEGGIMI.txt
+/static/brand_upload.*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
