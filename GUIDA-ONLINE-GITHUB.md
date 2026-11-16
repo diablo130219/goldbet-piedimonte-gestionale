@@ -1,30 +1,26 @@
-# GoldBet Piedimonte — versione predisposta per GitHub + Render
+# Pubblicazione GoldBet Piedimonte su Render Free + Neon Free
 
-## Cosa cambia rispetto alla versione locale
+Stato: progetto convertito per PostgreSQL (Neon) e hosting gratuito Render.
 
-Il codice rimane su GitHub, preferibilmente in un **repository privato**. Render ospita il sito web HTTPS, mentre un disco persistente conserva il database SQLite e il logo caricabile. I computer delle due casse e il telefono accedono allo **stesso sito** con utenti e password distinti. La rubrica e le distinte sono condivise. La pagina controlla i cambiamenti ogni **3 secondi** mentre è aperta (quasi in tempo reale, non push istantaneo).
+## Configurazione
 
-> Nessun servizio viene pubblicato automaticamente dallo ZIP. Per avere un URL reale occorre collegare l'account GitHub a Render, autorizzare la creazione del servizio e configurare il piano. Può comportare costi: **non scegliere il piano gratuito** con SQLite perché il disco locale viene cancellato a ogni riavvio/deploy. Il file `render.yaml` usa `plan: starter` e un disco da 1 GB.
+1. Progetto Neon dedicato `goldbet-piedimonte-gestionale`, regione EU Francoforte.
+2. Servizio Render **Free** (Python, regione Frankfurt), GitHub `diablo130219/goldbet-piedimonte-gestionale`, branch `main`.
+3. Build: `pip install -r requirements.txt && python -m compileall -q server.py storage.py`.
+4. Start: `python server.py`. Health check: `/healthz`.
+5. Segreti Render: `DATABASE_URL` (stringa SSL di Neon) e `GB_SETUP_TOKEN` (stringa casuale di almeno 24 caratteri). Ambiente `GB_PUBLIC=1`, `GB_SECURE_COOKIE=1`.
+6. Non configurare dischi e non selezionare piani a pagamento. Il server Cloud rifiuta l'avvio quando manca il database PostgreSQL.
+7. Aprire l'URL `onrender.com`, inserire il token di configurazione una sola volta, creare l'amministratore e gli operatori.
+8. Fare una simulazione nelle due casse: apertura, registrazione cliente, debito, acconto, saldo, notifiche, quadratura e archivio. Verificare da due browser differenti.
 
-## Guida pratica
+## Limiti gratuiti
 
-1. Su GitHub, crea un **repository privato**, per esempio `goldbet-piedimonte-gestionale`, e carica tutti i file presenti nella cartella del progetto, compreso `render.yaml` e `.gitignore`, senza caricare un eventuale file `data/gestionale.sqlite3`.
-2. Apri **https://dashboard.render.com** e collega GitHub. Crea una nuova **Blueprint** dal repository. Controlla che il servizio sia un `web service` Python con `plan: starter`, `disk` su `/var/data`, dimensione 1 GB e avvio `python server.py`.
-3. Render chiederà il valore della variabile segreta `GB_SETUP_TOKEN`: genera un codice casuale di almeno 24 caratteri (meglio almeno 32; non inserirlo nel repository). Conserva questo codice in un gestore di password. Render assegnerà un indirizzo HTTPS `*.onrender.com` al servizio.
-4. Apri il sito HTTPS ottenuto, inserisci nome amministratore, password forte e codice segreto di attivazione. Crea gli operatori e prova Cassa 1 e Cassa 2 da browser distinti.
-5. Verifica l'aggiornamento dei saldi tra le casse (entro pochi secondi), la quadratura e gli avvisi prima di registrare dati reali.
-6. Gli aggiornamenti al codice caricati su GitHub possono essere ridistribuiti da Render. Il database e il logo restano nel disco persistente (salvo rimozione volontaria del disco/servizio).
+- Render può andare in sospensione dopo inattività, con ritardo al primo accesso. Le risorse gratuite del workspace sono condivise con altri servizi.
+- Neon ha limiti su consumo, storage e connessioni; la sospensione del servizio può ritardare notifiche scadute fino al risveglio o al prossimo accesso.
+- La pagina interroga il server ogni ~3 secondi **mentre è aperta**: non è una connessione push continua.
+- Il DB Neon conserva i dati dopo i deploy di Render, ma non sostituisce un backup indipendente.
+- Backup amministratore PostgreSQL: esportazione `.json` sensibile; conservare fuori da GitHub. L'importazione automatica non è prevista.
 
-## Sicurezza indispensabile
+## Per l'utilizzo reale
 
-- Questo è un progetto adattato per la **prima distribuzione tecnica**, non un servizio già pubblicato, collaudato e certificato per dati personali reali. Prima dell'uso operativo fare revisione di sicurezza, controlli accessi, verifica privacy/GDPR, verifica con il concessionario e test di ripristino dei backup.
-- Non pubblicare mai nomi, debiti, backup o password nel repository GitHub. L'accesso al sito deve essere riservato agli operatori autorizzati; non rendere i dati pubblici.
-- Le password degli utenti e il codice di attivazione sono cose diverse. Dopo il primo setup il codice resta nella configurazione privata di Render, non visibile agli utenti normali.
-- Il download dei backup SQLite è previsto nell'area riservata all'amministratore: esegui backup regolari **al di fuori di Render**, criptati e con un ripristino testato. Un disco persistente non sostituisce il backup.
-- Un singolo disco SQLite è adatto a un singolo server piccolo, non a più istanze parallele. Per crescita, conviene migrare a PostgreSQL e aggiungere audit e controlli di sicurezza avanzati.
-- Ogni aggiornamento del server durante il deploy può causare una breve interruzione; il requisito “sempre online” non è una garanzia di disponibilità assoluta.
-- Il logo iniziale è un marchio testuale, non una versione certificata del logo ufficiale: caricare solo un logo del quale si hanno diritti d’uso.
-
-## Sviluppo locale
-
-Avvia con `python server.py`, visita `http://127.0.0.1:8787`. Senza `GB_SETUP_TOKEN` la prima configurazione è consentita solo in locale. I test si eseguono con `python -m unittest discover -s tests -v`.
+Prima dell'impiego con clienti reali servono controlli di sicurezza, privacy/GDPR, verifica delle procedure con il concessionario e un piano di backup/ripristino. Non inviare dati personali nel repository. Evitare di mettere in produzione questa versione gratuita come unica fonte contabile senza collaudo e sistema di continuità.
