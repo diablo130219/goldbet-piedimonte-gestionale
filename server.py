@@ -244,9 +244,12 @@ def shift_totals(c, shift):
                   'FROM movements WHERE shift_id=? AND voided_at IS NULL', (shift['id'],)).fetchone()
     result = as_dict(shift)
     result['blue_cents'] = result['green_cents'] - result['red_cents']
-    result['entries_cents'] = r['credits']
-    result['exits_cents'] = r['debits']
-    result['calculated_cents'] = (result['blue_cents'] + result['initial_cents'] + r['credits'] - r['debits'])
+    # PostgreSQL SUM(bigint) returns NUMERIC (Decimal). All amounts are
+    # integer cents; convert before computing totals or serializing JSON.
+    result['entries_cents'] = int(r['credits'])
+    result['exits_cents'] = int(r['debits'])
+    result['calculated_cents'] = (result['blue_cents'] + result['initial_cents']
+                                  + result['entries_cents'] - result['exits_cents'])
     return result
 
 
