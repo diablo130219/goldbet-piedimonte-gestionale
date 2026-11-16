@@ -196,6 +196,17 @@ def client_debt(c, client_id):
     return max(0, total), first_unpaid
 
 
+def clean_client_names(body):
+    """Only one field is required; a single label can be a name or a surname."""
+    first = ' '.join(str(body.get('first_name') or '').split())
+    last = ' '.join(str(body.get('last_name') or '').split())
+    if not first and not last:
+        raise ApiError(400, 'Inserisci almeno il nome oppure il cognome.')
+    if len(first) > 70 or len(last) > 70:
+        raise ApiError(400, 'Nome e cognome possono contenere al massimo 70 caratteri ciascuno.')
+    return first, last
+
+
 def serialize_client(c, row):
     result = as_dict(row)
     outstanding, first = client_debt(c, row['id'])
@@ -444,14 +455,11 @@ class Handler(BaseHTTPRequestHandler):
                         c.commit()
                         return self.respond(200, {'ok':True})
                     if path == '/api/clients' and method == 'GET':
-                        items = [serialize_client(c,r) for r in c.execute('SELECT * FROM clients ORDER BY LOWER(last_name),LOWER(first_name)')]
+                        items = [serialize_client(c,r) for r in c.execute("SELECT * FROM clients ORDER BY LOWER(CASE WHEN TRIM(last_name) <> '' THEN last_name ELSE first_name END), LOWER(first_name), LOWER(last_name), id")]
                         return self.respond(200, {'clients': items})
                     if path == '/api/clients' and method == 'POST':
                         b = self.body()
-                        first = ' '.join(str(b.get('first_name','')).strip().split())
-                        last = ' '.join(str(b.get('last_name','')).strip().split())
-                        if not (2<=len(first)<=70 and 2<=len(last)<=70):
-                            raise ApiError(400, 'Nome e cognome obbligatori (minimo 2 caratteri).')
+                        first, last = clean_client_names(b)
                         c.execute('BEGIN IMMEDIATE')
                         dup = c.execute('SELECT id FROM clients WHERE LOWER(first_name)=LOWER(?) AND LOWER(last_name)=LOWER(?)',(first,last)).fetchone()
                         if dup and not b.get('allow_homonym'):
@@ -474,10 +482,7 @@ class Handler(BaseHTTPRequestHandler):
                     if match and method == 'POST':
                         cid = int(match.group(1))
                         b = self.body()
-                        first = ' '.join(str(b.get('first_name','')).strip().split())
-                        last = ' '.join(str(b.get('last_name','')).strip().split())
-                        if not (2<=len(first)<=70 and 2<=len(last)<=70):
-                            raise ApiError(400,'Nome e cognome obbligatori (minimo 2 caratteri).')
+                        first, last = clean_client_names(b)
                         c.execute('BEGIN IMMEDIATE')
                         previous = c.execute('SELECT * FROM clients WHERE id=?',(cid,)).fetchone()
                         if not previous: raise ApiError(404,'Cliente non trovato.')
@@ -616,6 +621,25 @@ class Handler(BaseHTTPRequestHandler):
                         c.execute('DELETE FROM sessions WHERE user_id=?',(target,))
                         audit(c,user['id'],'reset_password','user',target)
                         c.commit(); return self.respond(200,{'ok':True})
+                    if path == '/api/admin/reset-data' and method == 'POST':
+                        # Explicit, administrator-only reset for trial data on BOTH tills.
+                        self.admin(user)
+                        b = self.body()
+                        if str(b.get('confirmation') or '').strip() != 'AZZERA TUTTO':
+                            raise ApiError(400, 'Scrivi AZZERA TUTTO per confermare la cancellazione.')
+                        password = str(b.get('password') or '')
+                        auth_row = c.execute('SELECT password_hash FROM users WHERE id=?',(user['id'],)).fetchone()
+                        if not auth_row or not verify_password(password,auth_row['password_hash']):
+                            raise ApiError(403, 'Password amministratore non corretta.')
+                        c.execute('BEGIN IMMEDIATE')
+                        counts = {table: int(c.execute('SELECT COUNT(*) AS n FROM '+table).fetchone()['n'])
+                                  for table in ('clients','shifts','movements','notifications')}
+                        # Dependents first. Accounts, sessions, settings and branded logo survive.
+                        for table in ('notification_reads','notifications','movements','shifts','clients','audit'):
+                            c.execute('DELETE FROM '+table)
+                        audit(c,user['id'],'reset_test_data','system',None,counts)
+                        c.commit()
+                        return self.respond(200,{'ok':True,'deleted':counts})
                     if path == '/api/backup' and method == 'GET':
                         self.admin(user)
                         if DATABASE_URL:
