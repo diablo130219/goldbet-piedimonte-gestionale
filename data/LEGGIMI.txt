@@ -1,0 +1,2 @@
+I dati del negozio vengono creati in questa cartella automaticamente.
+Non eliminare gestionale.sqlite3. Crea backup tramite Impostazioni > Scarica backup.
