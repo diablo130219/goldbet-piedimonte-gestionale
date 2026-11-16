@@ -86,6 +86,18 @@ class TestWorkflow(unittest.TestCase):
         archived=self.api(one,'/api/shifts/archive?cash=1')['shifts']
         self.assertEqual(len(archived),1)
         self.assertEqual(self.api(two,'/api/shifts/archive?cash=2')['shifts'],[])
+        # Optional customer fields: LIDL appears under L even without surname.
+        self.assertEqual(self.api(admin,'/api/clients',{'first_name':'','last_name':''})['status'],400)
+        lidl=self.api(admin,'/api/clients',{'first_name':'LIDL','last_name':''})['id']
+        brico=self.api(admin,'/api/clients',{'first_name':'','last_name':'BRICO'})['id']
+        registered=self.api(admin,'/api/clients')['clients']
+        self.assertEqual([x['first_name']+' '+x['last_name'] for x in registered],
+                         [' BRICO','LIDL ','Mario Rossi'])
+        self.assertEqual(self.api(admin,f'/api/clients/{lidl}')['client']['last_name'],'')
+        self.assertEqual(self.api(admin,f'/api/clients/{brico}')['client']['first_name'],'')
+        self.assertEqual(self.api(admin,f'/api/clients/{lidl}/edit',{'first_name':'','last_name':'LIDL'})['ok'],True)
+        self.assertEqual(self.api(admin,f'/api/clients/{lidl}/edit',{'first_name':'','last_name':''})['status'],400)
+        self.assertEqual(self.api(admin,'/api/clients',{'first_name':'A','last_name':''})['id']>0,True)
         self.assertTrue(self.api(admin,'/api/backup').startswith(b'SQLite format 3'))
 
     def test_money_values(self):
