@@ -1,0 +1,152 @@
+/* GoldBet Piedimonte — SIGNATURE / CONTROL ROOM
+   Distinctive UI layer for the operational dashboard. No changes to money logic.
+   Loaded after all legacy styles: one visual source of truth for this edition. */
+:root {
+ --bg:#06080c;--sidebar:#090b11;--card:#111925;--card2:#192335;
+ --panel:#141b26;--line:#354356;--ink:#fffaf0;--muted:#a8b6ca;
+ --gold:#ffcf46;--gold2:#dd9d18;--green:#2ce3a5;--red:#ff647a;--blue:#6bacff;
+}
+body{background:#06080d radial-gradient(ellipse 63% 60% at 87% -4%,rgba(185,135,30,.16),transparent 70%);}
+.app-layout{grid-template-columns:268px minmax(0,1fr)}
+.sidebar{background:linear-gradient(165deg,#111419 0%,#080b11 75%);border-right:1px solid #5d4a26;box-shadow:12px 0 44px rgba(0,0,0,.34)}
+.sidebar:before{height:7px;background:linear-gradient(90deg,#fcdb8b 0%,#f6bc34 48%,#bf7919 100%)}
+.logo-emblem{background:linear-gradient(145deg,#ffe9a7,#ecaa26);box-shadow:0 8px 28px rgba(245,186,49,.25)}
+.logo-word{font-size:26px;letter-spacing:-1.4px}
+.sidebar-edition{color:#e3bc71;border:1px solid rgba(255,208,93,.17);padding:10px;border-radius:10px;margin-bottom:26px;background:rgba(232,171,35,.06)}
+.nav-link{min-height:52px;color:#bec5d0}
+.nav-link.active{background:linear-gradient(110deg,#ffdd83,#e6a72c)!important;color:#201504!important;border-color:#ffe5a4!important;box-shadow:0 8px 28px rgba(241,172,31,.24)!important}
+.nav-link.active .icon{color:#201504!important}
+.nav-link:hover:not(.active){background:rgba(254,203,94,.11);color:#fff3d4}
+.sidebar-bottom .account{background:#171c26;border:1px solid #745c37}
+.topbar{height:90px;min-height:90px;background:rgba(10,12,17,.97);border-bottom:2px solid #7e612b;box-shadow:0 8px 35px rgba(0,0,0,.26)}
+.breadcrumb{color:#ffe2a2;letter-spacing:1px;text-transform:uppercase;font-size:12px}
+.topbar-sync{color:#d8d6d0}
+.cash-toggle{border-color:#786139;background:#131822}
+.cash-toggle button.active{background:linear-gradient(145deg,#ffe9aa,#edb634);color:#191208;font-weight:900;box-shadow:0 0 24px rgba(246,192,68,.35)}
+.page{padding-top:38px}
+.page-title h1{font-size:clamp(34px,3.2vw,51px);font-weight:980;letter-spacing:-2.3px;color:#fffef9}
+.page-title .eyebrow{color:#f7c75b}
+.page-title .subtitle{color:#b6c2d0}
+.btn-primary{background:linear-gradient(130deg,#fff1b6,#f8c744 52%,#df9620);color:#241804;border:1px solid #ffe8a1;box-shadow:0 7px 0 rgba(121,73,4,.17),0 12px 24px rgba(234,164,43,.2);font-weight:900}
+.btn-primary:hover{box-shadow:0 7px 0 rgba(121,73,4,.17),0 16px 31px rgba(234,164,43,.3)}
+.panel{background:linear-gradient(160deg,#1d2635,#111a27);border-color:#354252;box-shadow:0 16px 42px rgba(0,0,0,.3)}
+/* The showpiece: a genuinely bright gold hero, not another navy rectangle. */
+.command-hero,.welcome-banner{
+ min-height:238px;border:1px solid #ffdf83;border-radius:28px;
+ background:linear-gradient(106deg,#ffe5a0 0%,#ffc744 47%,#dc9821 100%);
+ box-shadow:0 24px 64px rgba(166,108,13,.22),inset 0 2px rgba(255,255,255,.58);
+ color:#21170b;position:relative;overflow:hidden;
+}
+.command-hero:before{width:8px;background:#17130e}
+.command-hero:after{background:repeating-linear-gradient(135deg,transparent 0 16px,rgba(68,43,5,.035) 16px 17px);z-index:-1}
+.command-hero .banner-mark,.welcome-banner .banner-mark{background:#201a11;border-color:#201a11;color:#ffcd57;box-shadow:0 12px 28px rgba(67,40,2,.19)}
+.command-hero .banner-mark .icon,.welcome-banner .banner-mark .icon{color:#ffcd57}
+.command-hero .banner-kicker,.welcome-banner .banner-kicker{color:#583604;font-weight:950;letter-spacing:2.6px}
+.command-hero .banner-copy strong,.welcome-banner .banner-copy strong{font-size:clamp(29px,3vw,46px);line-height:1.07;font-weight:980;letter-spacing:-2px;color:#14100b;text-shadow:none}
+.command-hero .banner-copy p,.welcome-banner .banner-copy p{color:#5c3f12;font-size:13px;font-weight:700}
+.command-hero .banner-chip,.welcome-banner .banner-chip{color:#fff0bd!important;background:#21180d!important;border-color:#35230a!important;font-weight:900!important}
+.command-status span{background:rgba(30,23,13,.1);border-color:rgba(48,35,14,.26);color:#392910;font-weight:850}
+.command-status .icon{color:#1f5945}
+.command-orbit{right:-26px;top:-86px;width:380px;height:380px;border:2px solid rgba(58,34,7,.18)}
+.command-orbit:before{border-color:rgba(58,34,7,.18);box-shadow:none}
+.command-orbit:after{border-color:rgba(58,34,7,.18)}
+.command-orbit span{background:#1e1b17;box-shadow:0 0 14px rgba(0,0,0,.14)}
+/* Asymmetrical scoreboard: large cobalt balance + two smaller panels. */
+.hero-stats{display:grid!important;grid-template-columns:minmax(0,1.67fr) minmax(235px,1fr)!important;grid-template-rows:repeat(2,minmax(0,1fr));gap:16px;margin-top:23px}
+.hero-stats .stat-card{min-height:0;padding:24px 27px;border-radius:23px}
+.hero-stats .stat-card.stat-blue{
+ grid-column:1;grid-row:1 / span 2;min-height:395px;display:flex;flex-direction:column;justify-content:space-between;
+ border:1px solid #8fc6ff;background:radial-gradient(circle at 75% 22%,rgba(131,212,255,.32),transparent 38%),linear-gradient(133deg,#135da7,#123a84 58%,#102349);
+ box-shadow:0 20px 60px rgba(12,91,188,.28),inset 0 1px rgba(255,255,255,.25);
+}
+.hero-stats .stat-card.stat-green{grid-column:2;grid-row:1;background:linear-gradient(129deg,#126a52,#0b3e3e 80%);border-color:#39bc90}
+.hero-stats .stat-card.stat-red{grid-column:2;grid-row:2;background:linear-gradient(129deg,#8a3445,#482135 80%);border-color:#ee7884}
+.hero-stats .stat-card:before{width:7px;opacity:1}
+.hero-stats .stat-card:after{width:340px;height:340px;right:-170px;top:-160px;opacity:.17}
+.hero-stats .stat-card .stat-top{font-size:clamp(13px,1.25vw,17px);letter-spacing:.12px}
+.hero-stats .stat-card .stat-value{font-size:clamp(31px,2.9vw,49px);letter-spacing:-2px;margin-top:16px;text-shadow:0 5px 24px rgba(0,0,0,.18)}
+.hero-stats .stat-card.stat-blue .stat-value{font-size:clamp(47px,5.2vw,87px);letter-spacing:-4.3px;line-height:.95;margin:20px 0}
+.hero-stats .stat-card.stat-blue .stat-label{font-size:19px}
+.hero-stats .stat-card.stat-blue .stat-symbol{width:64px;height:64px}
+.hero-stats .stat-card.stat-blue .stat-symbol .icon{width:32px;height:32px}
+.hero-stats .stat-card .stat-foot{margin-top:16px;color:#d6e9fa;font-size:12px}
+.hero-stats .stat-card .stat-decor{font-size:180px;right:13px;bottom:-40px;opacity:.075}
+.action-panel{background:linear-gradient(130deg,#24232b,#141d2a);border-color:#6a552f}
+.action-panel:before{height:4px;background:linear-gradient(90deg,#b77e16,#ffdd85 48%,#e09a27)}
+.quick:nth-child(1){background:linear-gradient(140deg,#6a4b1f,#342b24);border-color:#ba873d}
+.quick:nth-child(2){background:linear-gradient(140deg,#1d3f56,#152838);border-color:#417996}
+.quick:nth-child(3){background:linear-gradient(140deg,#2f3a50,#1e2432);border-color:#6c7490}
+.quickicon{background:#ffdb83;color:#22190c;border-color:#ffecbb}
+.quickicon .icon{color:#24190b}
+/* Consistent light accents on the supporting screens. */
+.client-identity-hero,.closing-hero{border-color:#aa8241;background:linear-gradient(105deg,#322d25,#192535 77%)}
+.client-identity-hero:before,.closing-hero:before{background:#ffd276}
+.count-card{border-top:3px solid #b28b44}
+.directory-panel .alphabet-key.selected{background:#ffda74;color:#241b0d}
+.modal{border:1px solid #a68652;box-shadow:0 44px 120px rgba(0,0,0,.75),0 0 0 1px rgba(255,205,115,.08)}
+.modal-head{background:linear-gradient(120deg,#2b2924,#1b2534);border-bottom:2px solid #ae823b}
+.modal-head h2{color:#ffdf95}
+.table th{background:#10151e;color:#f4cf8c}
+.table tbody tr.client-letter td{background:rgba(255,204,82,.16)!important}
+/* Login: visually different gold stage + black access panel. */
+.auth-page{background:#07090c;grid-template-columns:minmax(0,1.05fr) minmax(400px,.95fr)}
+.auth-art{background:linear-gradient(140deg,#ffe7a5 0%,#f9c64d 55%,#c7881b 100%);color:#19130b}
+.auth-art:before{background:repeating-linear-gradient(135deg,transparent 0 49px,rgba(71,40,1,.045) 49px 50px)}
+.auth-art:after{border:1px solid rgba(63,42,4,.3);box-shadow:0 0 0 74px rgba(74,43,4,.05),0 0 0 152px rgba(74,43,4,.037)}
+.auth-art .auth-brand .logo-word,.auth-art .auth-brand .logo-word .gold,.auth-art .logo-sub{color:#1b1510!important}
+.auth-art .logo-emblem{background:#1b1610;color:#f9c44d;border-color:#1b1610;box-shadow:0 10px 22px rgba(53,30,4,.22)}
+.auth-art .auth-hero .eyebrow{color:#523507}
+.auth-art .auth-hero h1{color:#19130b;font-size:clamp(47px,5.4vw,88px);line-height:1.01}
+.auth-art .auth-hero h1 span{background:none;-webkit-text-fill-color:#51300a;color:#51300a}
+.auth-art .auth-hero p{color:#513c1c;font-weight:700}
+.auth-art .auth-highlights span{background:rgba(42,29,9,.08);border-color:rgba(62,42,7,.26);color:#342713}
+.auth-art .auth-highlights .icon{color:#342713}
+.auth-art .auth-footer{color:#6b4d23}
+.auth-form-side{background:radial-gradient(circle at 85% 0%,rgba(243,195,68,.095),transparent 43%),#10141b}
+.auth-box h2{color:#fff8e7}
+.auth-box .eyebrow{color:#ffd76a}
+.auth-box .input{border-color:#6b5739;background:#10151e}
+/* All users: old tab's HTML now gets a separate asset revision in index.html. */
+@media(min-width:901px) and (max-width:1160px){
+ .hero-stats{grid-template-columns:minmax(0,1.1fr) minmax(215px,1fr)!important}
+ .hero-stats .stat-card.stat-blue .stat-value{font-size:clamp(39px,4vw,55px)}
+ .hero-stats .stat-card .stat-value{font-size:clamp(27px,2.7vw,37px)}
+ .command-hero .banner-copy strong{font-size:clamp(26px,2.8vw,34px)}
+}
+@media(max-width:900px){
+ .app-layout{display:block}
+ .topbar{height:72px;min-height:72px}
+ .sidebar{width:275px}
+ .hero-stats{grid-template-columns:minmax(0,1.35fr) minmax(210px,1fr)!important}
+ .hero-stats .stat-card.stat-blue{min-height:340px}
+ .hero-stats .stat-card.stat-blue .stat-value{font-size:clamp(33px,5.2vw,62px);letter-spacing:-2px}
+ .command-hero{min-height:222px}
+ .auth-page{display:flex;flex-direction:column}
+ .auth-art{min-height:270px}
+}
+@media(max-width:680px){
+ .hero-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:auto auto!important;gap:10px}
+ .hero-stats .stat-card.stat-blue{grid-column:1 / -1;grid-row:1;min-height:213px;padding:22px 19px}
+ .hero-stats .stat-card.stat-green{grid-column:1;grid-row:2;min-height:170px;padding:18px 14px}
+ .hero-stats .stat-card.stat-red{grid-column:2;grid-row:2;min-height:170px;padding:18px 14px}
+ .hero-stats .stat-card.stat-blue .stat-value{font-size:clamp(43px,10vw,56px);letter-spacing:-2.4px;white-space:nowrap}
+ .hero-stats .stat-card.stat-blue .stat-label{font-size:15px}
+ .hero-stats .stat-card .stat-value{font-size:clamp(22px,6.2vw,31px);margin-top:13px;letter-spacing:-1px}
+ .hero-stats .stat-card .stat-symbol{width:37px;height:37px}
+ .hero-stats .stat-card .stat-symbol .icon{width:19px;height:19px}
+ .hero-stats .stat-card .stat-foot{font-size:9px;line-height:1.4}
+ .hero-stats .stat-card .stat-decor{font-size:106px;bottom:-25px}
+ .command-hero,.welcome-banner{min-height:242px;padding:24px 18px}
+ .command-hero .banner-copy strong,.welcome-banner .banner-copy strong{font-size:24px;letter-spacing:-1px}
+ .command-hero .banner-copy p{font-size:11px}
+ .command-status span{font-size:8.5px;padding:5px 7px}
+ .command-orbit{right:-180px;opacity:.28}
+ .topbar{border-bottom-width:1px}
+ .auth-art{min-height:280px;padding:30px 20px}
+ .auth-art .auth-hero h1{font-size:clamp(39px,10vw,48px)}
+ .auth-box{padding-bottom:14px}
+}
+@media(prefers-reduced-motion:reduce){.command-orbit{animation:none}}
+@media print{.command-hero,.welcome-banner,.stat-card{background:#fff!important;color:#111!important;box-shadow:none!important;border-color:#aaa!important}.stat-card .stat-value,.command-hero .banner-copy strong{color:#111!important}}
+
+.auth-art .logo-word .gold,.auth-art .logo-word span{-webkit-text-fill-color:#1b1510!important;color:#1b1510!important}
