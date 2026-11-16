@@ -17,6 +17,14 @@ class PostgreSQLCompatibility(unittest.TestCase):
         conn.execute('SELECT * FROM clients WHERE id=? AND first_name=?',(3,'Anna'))
         self.assertEqual(raw.queries,[('BEGIN',()),('SELECT * FROM clients WHERE id=%s AND first_name=%s',(3,'Anna'))])
 
+    def test_explicit_sql_commit(self):
+        raw=FakeRaw()
+        conn=PostgreSQLConnection(raw)
+        conn.execute('BEGIN IMMEDIATE')
+        conn.commit()
+        self.assertEqual(raw.queries[0][0], 'BEGIN')
+        self.assertEqual(raw.queries[1][0], 'COMMIT')
+
     def test_schema_contains_two_cash_constraint_and_durable_logo(self):
         sql=(Path(__file__).resolve().parents[1]/'schema_postgres.sql').read_text()
         self.assertIn('CHECK(cash_number IN (1,2))',sql)
