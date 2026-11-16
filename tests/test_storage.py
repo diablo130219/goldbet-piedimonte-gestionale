@@ -1,7 +1,9 @@
-import sys, unittest
+import json, sys, unittest
+from decimal import Decimal
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from storage import PostgreSQLConnection
+from server import shift_totals
 
 class FakeRaw:
     def __init__(self): self.queries=[]
@@ -24,6 +26,24 @@ class PostgreSQLCompatibility(unittest.TestCase):
         conn.commit()
         self.assertEqual(raw.queries[0][0], 'BEGIN')
         self.assertEqual(raw.queries[1][0], 'COMMIT')
+
+    def test_postgres_numeric_aggregates_are_json_serializable(self):
+        class FakeAggregateDb:
+            def execute(self, sql, params=()):
+                return self
+            def fetchone(self):
+                return {'credits': Decimal('8000'), 'debits': Decimal('1500')}
+
+        shift = {'id': 13, 'green_cents': 289085, 'red_cents': 36137,
+                 'initial_cents': 32525}
+        result = shift_totals(FakeAggregateDb(), shift)
+        self.assertEqual(result['blue_cents'], 252948)
+        self.assertEqual(result['entries_cents'], 8000)
+        self.assertEqual(result['exits_cents'], 1500)
+        self.assertEqual(result['calculated_cents'], 291973)
+        self.assertEqual(json.loads(json.dumps({'shift': result}))['shift'], result)
+        self.assertIsInstance(result['entries_cents'], int)
+        self.assertIsInstance(result['exits_cents'], int)
 
     def test_schema_contains_two_cash_constraint_and_durable_logo(self):
         sql=(Path(__file__).resolve().parents[1]/'schema_postgres.sql').read_text()
