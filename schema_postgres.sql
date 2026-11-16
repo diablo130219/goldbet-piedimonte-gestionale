@@ -54,6 +54,10 @@ CREATE TABLE IF NOT EXISTS audit (
  entity TEXT NOT NULL, entity_id BIGINT, details TEXT NOT NULL DEFAULT '{}',
  created_at TEXT NOT NULL
 );
+-- Blue-only migration. NULL means a legacy shift: show its original green-red balance.
+-- Existing breakdown remains untouched for historical integrity.
+ALTER TABLE shifts ADD COLUMN IF NOT EXISTS manual_blue_cents BIGINT;
+
 -- Logos are stored in PostgreSQL because Render Free has no persistent disk.
 CREATE TABLE IF NOT EXISTS brand_assets (
  id INTEGER PRIMARY KEY CHECK (id=1),

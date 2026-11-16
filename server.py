@@ -61,6 +61,13 @@ def money(value):
     return int(v * 100)
 
 
+def signed_money(value):
+    """Amount on the terminal may be a signed balance; return integer cents."""
+    if isinstance(value, str) and value.strip().startswith('-'):
+        return -money(value.strip()[1:])
+    return money(value)
+
+
 def euros(cents):
     return f'{cents / 100:.2f}'
 
@@ -110,6 +117,7 @@ def init_db():
             initial_cents INTEGER NOT NULL,
             green_cents INTEGER NOT NULL DEFAULT 0,
             red_cents INTEGER NOT NULL DEFAULT 0,
+            manual_blue_cents INTEGER,
             physical_cents INTEGER, expected_cents INTEGER,
             difference_cents INTEGER,
             close_note TEXT NOT NULL DEFAULT '', closed_at TEXT
@@ -146,6 +154,10 @@ def init_db():
             details TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL
           );
         ''')
+        # Existing local databases must keep all their historical shifts.
+        cols = {row['name'] for row in c.execute('PRAGMA table_info(shifts)')}
+        if 'manual_blue_cents' not in cols:
+            c.execute('ALTER TABLE shifts ADD COLUMN manual_blue_cents INTEGER')
 
 
 def hash_password(password, salt=None):
@@ -254,7 +266,14 @@ def shift_totals(c, shift):
                   "COALESCE(SUM(CASE WHEN kind='debit' THEN amount_cents ELSE 0 END),0) AS debits "
                   'FROM movements WHERE shift_id=? AND voided_at IS NULL', (shift['id'],)).fetchone()
     result = as_dict(shift)
-    result['blue_cents'] = result['green_cents'] - result['red_cents']
+    # New shifts use the manually entered terminal balance. Older shifts retain
+    # their original balance; their historical data is never overwritten.
+    manual_blue = result.get('manual_blue_cents')
+    result['blue_cents'] = int(manual_blue) if manual_blue is not None else int(result['green_cents'] - result['red_cents'])
+    # Legacy terminal breakdown is not part of the blue-only UI/API.
+    result.pop('green_cents', None)
+    result.pop('red_cents', None)
+    result.pop('manual_blue_cents', None)
     # PostgreSQL SUM(bigint) returns NUMERIC (Decimal). All amounts are
     # integer cents; convert before computing totals or serializing JSON.
     result['entries_cents'] = int(r['credits'])
@@ -446,12 +465,16 @@ class Handler(BaseHTTPRequestHandler):
                     if path == '/api/shifts/totals' and method == 'POST':
                         b = self.body()
                         sid = int(b.get('shift_id',0))
-                        green = money(b.get('green',''))
-                        red = money(b.get('red',''))
+                        if 'blue' not in b:
+                            raise ApiError(400, 'La cassa ora richiede soltanto il saldo blu. Aggiorna la pagina.')
+                        blue = signed_money(b.get('blue'))
                         c.execute('BEGIN IMMEDIATE')
                         shift = self.authorized_shift(c,user,sid)
-                        c.execute('UPDATE shifts SET green_cents=?,red_cents=? WHERE id=?', (green,red,sid))
-                        audit(c,user['id'],'update_totals','shift',sid,{'old_green':shift['green_cents'],'old_red':shift['red_cents'], 'green':green,'red':red})
+                        previous = shift['manual_blue_cents']
+                        if previous is None:
+                            previous = shift['green_cents'] - shift['red_cents']
+                        c.execute('UPDATE shifts SET manual_blue_cents=? WHERE id=?', (blue,sid))
+                        audit(c,user['id'],'update_blue','shift',sid,{'previous_blue_cents':previous,'blue_cents':blue})
                         c.commit()
                         return self.respond(200, {'ok':True})
                     if path == '/api/clients' and method == 'GET':
