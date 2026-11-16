@@ -12,6 +12,7 @@ import os
 import re
 import secrets
 import sqlite3
+from storage import connect as open_storage, DATABASE_URL, INTEGRITY_ERRORS
 import sys
 import tempfile
 import threading
@@ -65,12 +66,7 @@ def euros(cents):
 
 
 def db():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, timeout=15, isolation_level=None)
-    conn.row_factory = sqlite3.Row
-    conn.execute('PRAGMA foreign_keys = ON')
-    conn.execute('PRAGMA busy_timeout = 15000')
-    return conn
+    return open_storage(DB_PATH)
 
 
 @contextmanager
@@ -83,6 +79,13 @@ def db_session():
         connection.close()
 
 def init_db():
+    if DATABASE_URL:
+        with db_session() as c:
+            ddl = (ROOT / 'schema_postgres.sql').read_text(encoding='utf-8')
+            for statement in ddl.split(';'):
+                if statement.strip():
+                    c.execute(statement)
+        return
     with db_session() as c:
         c.execute('PRAGMA journal_mode=WAL')
         c.executescript('''
@@ -353,7 +356,7 @@ class Handler(BaseHTTPRequestHandler):
             with _LOCK:
                 with db_session() as c:
                     if path == '/api/bootstrap' and method == 'GET':
-                        n = c.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+                        n = c.execute('SELECT COUNT(*) AS count FROM users').fetchone()['count']
                         return self.respond(200, {'needs_setup': n == 0, 'online_setup': bool(os.environ.get('GB_SETUP_TOKEN'))})
                     if path == '/api/setup' and method == 'POST':
                         b = self.body()
@@ -367,12 +370,12 @@ class Handler(BaseHTTPRequestHandler):
                         elif not ipaddress.ip_address(self.client_address[0]).is_loopback:
                             raise ApiError(403, 'Prima configurazione consentita solo dal PC server.')
                         c.execute('BEGIN IMMEDIATE')
-                        if c.execute('SELECT COUNT(*) FROM users').fetchone()[0]:
+                        if c.execute('SELECT COUNT(*) AS count FROM users').fetchone()['count']:
                             raise ApiError(409, 'Configurazione già completata.')
                         password = validate_password(b.get('password'))
                         name = str(b.get('full_name', '')).strip()
                         if len(name) < 2 or len(name) > 80: raise ApiError(400, 'Inserisci il nome operatore.')
-                        c.execute('INSERT INTO users(username,full_name,password_hash,role,created_at) VALUES(?,?,?,?,?)',
+                        c.execute('INSERT INTO users(username,full_name,password_hash,role,created_at) VALUES(?,?,?,?,?) RETURNING id',
                                   ('admin', name, hash_password(password), 'admin', now_utc()))
                         c.commit()
                         return self.respond(201, {'ok': True})
@@ -383,7 +386,7 @@ class Handler(BaseHTTPRequestHandler):
                         k = (self.client_address[0], username.lower())
                         attempts = [x for x in _ATTEMPTS.get(k, []) if time.time() - x < 900]
                         if len(attempts) >= 8: raise ApiError(429, 'Troppi tentativi. Riprova tra 15 minuti.')
-                        u = c.execute('SELECT * FROM users WHERE username=? COLLATE NOCASE AND active=1', (username,)).fetchone()
+                        u = c.execute('SELECT * FROM users WHERE LOWER(username)=LOWER(?) AND active=1', (username,)).fetchone()
                         if not u or not verify_password(pw, u['password_hash']):
                             attempts.append(time.time()); _ATTEMPTS[k] = attempts
                             raise ApiError(401, 'Credenziali errate.')
@@ -420,11 +423,12 @@ class Handler(BaseHTTPRequestHandler):
                         initial = money(b.get('initial',''))
                         c.execute('BEGIN IMMEDIATE')
                         if self.current_shift(c,cash): raise ApiError(409, 'Esiste già una distinta aperta su questa cassa.')
-                        cur = c.execute('INSERT INTO shifts(cash_number,user_id,opening_date,opened_at,initial_cents) VALUES(?,?,?,?,?)',
+                        cur = c.execute('INSERT INTO shifts(cash_number,user_id,opening_date,opened_at,initial_cents) VALUES(?,?,?,?,?) RETURNING id',
                                         (cash,user['id'],current_date(),now_utc(),initial))
-                        audit(c,user['id'],'open','shift',cur.lastrowid,{'initial_cents':initial})
+                        new_id = cur.fetchone()['id']
+                        audit(c,user['id'],'open','shift',new_id,{'initial_cents':initial})
                         c.commit()
-                        return self.respond(201, {'id':cur.lastrowid})
+                        return self.respond(201, {'id':new_id})
                     if path == '/api/shifts/totals' and method == 'POST':
                         b = self.body()
                         sid = int(b.get('shift_id',0))
@@ -437,7 +441,7 @@ class Handler(BaseHTTPRequestHandler):
                         c.commit()
                         return self.respond(200, {'ok':True})
                     if path == '/api/clients' and method == 'GET':
-                        items = [serialize_client(c,r) for r in c.execute('SELECT * FROM clients ORDER BY last_name COLLATE NOCASE,first_name COLLATE NOCASE')]
+                        items = [serialize_client(c,r) for r in c.execute('SELECT * FROM clients ORDER BY LOWER(last_name),LOWER(first_name)')]
                         return self.respond(200, {'clients': items})
                     if path == '/api/clients' and method == 'POST':
                         b = self.body()
@@ -446,13 +450,14 @@ class Handler(BaseHTTPRequestHandler):
                         if not (2<=len(first)<=70 and 2<=len(last)<=70):
                             raise ApiError(400, 'Nome e cognome obbligatori (minimo 2 caratteri).')
                         c.execute('BEGIN IMMEDIATE')
-                        dup = c.execute('SELECT id FROM clients WHERE first_name=? COLLATE NOCASE AND last_name=? COLLATE NOCASE',(first,last)).fetchone()
+                        dup = c.execute('SELECT id FROM clients WHERE LOWER(first_name)=LOWER(?) AND LOWER(last_name)=LOWER(?)',(first,last)).fetchone()
                         if dup and not b.get('allow_homonym'):
                             raise ApiError(409, 'Cliente con lo stesso nome già presente. Controlla la rubrica; se omonimo, conferma l’inserimento.')
-                        cur = c.execute('INSERT INTO clients(first_name,last_name,created_at) VALUES(?,?,?)',(first,last,now_utc()))
-                        audit(c,user['id'],'create','client',cur.lastrowid)
+                        cur = c.execute('INSERT INTO clients(first_name,last_name,created_at) VALUES(?,?,?) RETURNING id',(first,last,now_utc()))
+                        new_id = cur.fetchone()['id']
+                        audit(c,user['id'],'create','client',new_id)
                         c.commit()
-                        return self.respond(201, {'id': cur.lastrowid})
+                        return self.respond(201, {'id': new_id})
                     match = re.fullmatch(r'/api/clients/(\d+)', path)
                     if match and method == 'GET':
                         client_id = int(match.group(1))
@@ -493,12 +498,13 @@ class Handler(BaseHTTPRequestHandler):
                         previous, _ = client_debt(c,cid)
                         if kind=='credit' and amount>previous:
                             raise ApiError(400,f'Pagamento superiore al debito residuo ({euros(previous)} €).')
-                        cur = c.execute('INSERT INTO movements(client_id,shift_id,user_id,kind,amount_cents,note,created_at) VALUES(?,?,?,?,?,?,?)',
+                        cur = c.execute('INSERT INTO movements(client_id,shift_id,user_id,kind,amount_cents,note,created_at) VALUES(?,?,?,?,?,?,?) RETURNING id',
                                   (cid,sid,user['id'],kind,amount,note,now_utc()))
+                        new_id = cur.fetchone()['id']
                         reconcile_client(c,cid,previous,amount if kind=='credit' else 0)
-                        audit(c,user['id'],'create','movement',cur.lastrowid,{'client':cid,'kind':kind,'amount_cents':amount,'cash':shift['cash_number']})
+                        audit(c,user['id'],'create','movement',new_id,{'client':cid,'kind':kind,'amount_cents':amount,'cash':shift['cash_number']})
                         c.commit()
-                        return self.respond(201, {'id':cur.lastrowid})
+                        return self.respond(201, {'id':new_id})
                     match = re.fullmatch(r'/api/movements/(\d+)/void',path)
                     if match and method == 'POST':
                         mid = int(match.group(1)); b=self.body()
@@ -565,7 +571,7 @@ class Handler(BaseHTTPRequestHandler):
                         b=self.body(); nid=int(b.get('id',0))
                         if not c.execute('SELECT id FROM notifications WHERE id=?',(nid,)).fetchone():
                             raise ApiError(404,'Notifica inesistente.')
-                        c.execute('INSERT OR IGNORE INTO notification_reads(notification_id,user_id,read_at) VALUES(?,?,?)',
+                        c.execute('INSERT INTO notification_reads(notification_id,user_id,read_at) VALUES(?,?,?) ON CONFLICT DO NOTHING',
                                   (nid,user['id'],now_utc()))
                         c.commit()
                         return self.respond(200,{'ok':True})
@@ -581,12 +587,13 @@ class Handler(BaseHTTPRequestHandler):
                         if not re.fullmatch(r'[a-z0-9._-]{3,35}',username): raise ApiError(400,'Username: 3-35 caratteri, lettere, numeri, punti o trattini.')
                         if not (2<=len(name)<=80): raise ApiError(400,'Nome operatore obbligatorio.')
                         try:
-                            cur=c.execute('INSERT INTO users(username,full_name,password_hash,role,created_at) VALUES(?,?,?,?,?)',
+                            cur=c.execute('INSERT INTO users(username,full_name,password_hash,role,created_at) VALUES(?,?,?,?,?) RETURNING id',
                                            (username,name,hash_password(password),'operator',now_utc()))
-                        except sqlite3.IntegrityError: raise ApiError(409,'Questo username esiste già.')
-                        audit(c,user['id'],'create','user',cur.lastrowid)
+                            new_id = cur.fetchone()['id']
+                        except INTEGRITY_ERRORS: raise ApiError(409,'Questo username esiste già.')
+                        audit(c,user['id'],'create','user',new_id)
                         c.commit()
-                        return self.respond(201,{'id':cur.lastrowid})
+                        return self.respond(201,{'id':new_id})
                     if path == '/api/users/password' and method == 'POST':
                         b=self.body(); pw=validate_password(b.get('new_password'))
                         old=c.execute('SELECT password_hash FROM users WHERE id=?',(user['id'],)).fetchone()
@@ -608,16 +615,23 @@ class Handler(BaseHTTPRequestHandler):
                         c.commit(); return self.respond(200,{'ok':True})
                     if path == '/api/backup' and method == 'GET':
                         self.admin(user)
-                        fd, fn = tempfile.mkstemp(suffix='.sqlite3')
-                        os.close(fd)
-                        try:
-                            with sqlite3.connect(fn) as target: c.backup(target)
-                            raw = Path(fn).read_bytes()
-                        finally:
-                            Path(fn).unlink(missing_ok=True)
+                        if DATABASE_URL:
+                            raw = postgres_backup(c)
+                            filename = f'GoldBet-Piedimonte-backup-{current_date()}.json'
+                            content_type = 'application/json'
+                        else:
+                            fd, fn = tempfile.mkstemp(suffix='.sqlite3')
+                            os.close(fd)
+                            try:
+                                with sqlite3.connect(fn) as target: c.backup(target)
+                                raw = Path(fn).read_bytes()
+                            finally:
+                                Path(fn).unlink(missing_ok=True)
+                            filename = f'GoldBet-Piedimonte-backup-{current_date()}.sqlite3'
+                            content_type = 'application/octet-stream'
                         self.send_response(200)
-                        self.send_header('Content-Type','application/octet-stream')
-                        self.send_header('Content-Disposition',f'attachment; filename="GoldBet-Piedimonte-backup-{current_date()}.sqlite3"')
+                        self.send_header('Content-Type',content_type)
+                        self.send_header('Content-Disposition',f'attachment; filename="{filename}"')
                         self.send_header('Content-Length',str(len(raw)))
                         self.send_header('Cache-Control','no-store')
                         self.end_headers(); self.wfile.write(raw)
@@ -632,21 +646,33 @@ class Handler(BaseHTTPRequestHandler):
                         ext={'png':'png','jpeg':'jpg','webp':'webp'}[match.group(1)]
                         if (ext=='png' and not blob.startswith(b'\x89PNG\r\n\x1a\n')) or (ext=='jpg' and not blob.startswith(b'\xff\xd8')) or (ext=='webp' and blob[8:12]!=b'WEBP'):
                             raise ApiError(400,'File immagine non riconosciuto.')
-                        STATIC.mkdir(exist_ok=True)
-                        BRAND_DIR.mkdir(parents=True, exist_ok=True)
-                        for old in BRAND_DIR.glob('brand_upload.*'): old.unlink()
-                        (BRAND_DIR/f'brand_upload.{ext}').write_bytes(blob)
+                        if DATABASE_URL:
+                            c.execute('''INSERT INTO brand_assets(id,mime,extension,content,updated_at)
+                              VALUES(1,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
+                              mime=EXCLUDED.mime,extension=EXCLUDED.extension,
+                              content=EXCLUDED.content,updated_at=EXCLUDED.updated_at''',
+                              ('image/'+match.group(1), ext, blob, now_utc()))
+                        else:
+                            STATIC.mkdir(exist_ok=True)
+                            BRAND_DIR.mkdir(parents=True, exist_ok=True)
+                            for old in BRAND_DIR.glob('brand_upload.*'): old.unlink()
+                            (BRAND_DIR/f'brand_upload.{ext}').write_bytes(blob)
                         audit(c,user['id'],'change_logo','settings',None)
                         c.commit(); return self.respond(200,{'ok':True})
                     if path == '/api/settings' and method == 'GET':
-                        files=list(BRAND_DIR.glob('brand_upload.*'))
-                        return self.respond(200,{'logo_path':('/static/'+files[0].name) if files else None})
+                        if DATABASE_URL:
+                            record = c.execute('SELECT extension FROM brand_assets WHERE id=1').fetchone()
+                            url = '/static/brand_upload.'+record['extension'] if record else None
+                        else:
+                            files = list(BRAND_DIR.glob('brand_upload.*'))
+                            url = '/static/'+files[0].name if files else None
+                        return self.respond(200,{'logo_path':url})
                     raise ApiError(404, 'Pagina o operazione non trovata.')
         except ApiError as e:
             self.respond(e.status,{'error':e.message})
         except (ValueError,TypeError) as e:
             self.respond(400,{'error':str(e) or 'Dati non validi.'})
-        except sqlite3.IntegrityError:
+        except INTEGRITY_ERRORS:
             self.respond(409,{'error':'Conflitto tra dati: aggiorna la pagina e riprova.'})
         except Exception as e:
             print('ERROR:',repr(e),file=sys.stderr)
@@ -658,6 +684,19 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith('/static/'): path=path[len('/static/'):]
         else: path=path.lstrip('/')
         # Only uploaded logo files live on the persistent disk in cloud mode.
+        if DATABASE_URL and re.fullmatch(r'brand_upload\.(png|jpg|jpeg|webp)', path):
+            with db_session() as c:
+                result = c.execute('SELECT mime,extension,content FROM brand_assets WHERE id=1').fetchone()
+            if not result or path != 'brand_upload.'+result['extension']:
+                self.send_error(404); return
+            content = bytes(result['content'])
+            self.send_response(200)
+            self.send_header('Content-Type', result['mime'])
+            self.send_header('Content-Length', str(len(content)))
+            self.send_header('Cache-Control', 'public,max-age=60')
+            self.send_header('X-Content-Type-Options', 'nosniff')
+            self.end_headers(); self.wfile.write(content)
+            return
         root = BRAND_DIR if re.fullmatch(r'brand_upload\.(png|jpg|jpeg|webp)',path) else STATIC
         requested=(root/path).resolve()
         if not requested.is_relative_to(root.resolve()) or not requested.is_file():
@@ -677,6 +716,25 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers(); self.wfile.write(data)
 
 
+def postgres_backup(c):
+    # Private administrator-only export. Contains names and password hashes;
+    # store encrypted, never publish in GitHub or send over messaging.
+    table_names = ('users','clients','shifts','movements','notifications',
+                   'notification_reads','audit','brand_assets')
+    tables = {}
+    for name in table_names:
+        rows = []
+        for row in c.execute('SELECT * FROM ' + name):
+            record = dict(row)
+            for key,value in record.items():
+                if isinstance(value,(bytes,memoryview)):
+                    record[key] = {'base64':base64.b64encode(value).decode('ascii')}
+            rows.append(record)
+        tables[name] = rows
+    return json.dumps({'format':'goldbet-neon-backup-v1','exported_at':now_utc(),
+                       'tables':tables},ensure_ascii=False,indent=2).encode('utf-8')
+
+
 def notification_monitor(stop_event):
     # Creates overdue alerts while the server runs, independently from browser activity.
     while not stop_event.is_set():
@@ -692,8 +750,11 @@ def notification_monitor(stop_event):
 
 
 def run(port=None):
-    if os.environ.get('GB_PUBLIC') == '1' and not os.environ.get('GB_SETUP_TOKEN'):
-        raise RuntimeError('GB_SETUP_TOKEN è obbligatorio per esporre il gestionale online.')
+    if os.environ.get('GB_PUBLIC') == '1':
+        if not os.environ.get('GB_SETUP_TOKEN'):
+            raise RuntimeError('GB_SETUP_TOKEN è obbligatorio per esporre il gestionale online.')
+        if not DATABASE_URL:
+            raise RuntimeError('DATABASE_URL (Neon) è obbligatorio in cloud: non salvare dati su disco temporaneo.')
     init_db()
     port = int(port or os.environ.get('PORT') or os.environ.get('GB_PORT',8787))
     host = os.environ.get('GB_HOST','0.0.0.0')
@@ -701,7 +762,7 @@ def run(port=None):
     print(f'\n  GOLD BET PIEDIMONTE — SERVER AVVIATO\n'
           f'  Sul PC server: http://127.0.0.1:{port}\n'
           f'  Su Cassa 1 e Cassa 2: http://IP-DEL-PC-SERVER:{port}\n'
-          f'  Database: {DB_PATH}\n'
+          f'  Database: {"Neon PostgreSQL" if DATABASE_URL else DB_PATH}\n'
           f'  Configurazione: codice privato GB_SETUP_TOKEN, se impostato.\n'
           f'  Online: usare esclusivamente HTTPS dietro un reverse proxy affidabile.\n', flush=True)
     stop_event = threading.Event()
