@@ -6,7 +6,7 @@
  --panel:#141b26;--line:#354356;--ink:#fffaf0;--muted:#a8b6ca;
  --gold:#ffcf46;--gold2:#dd9d18;--green:#2ce3a5;--red:#ff647a;--blue:#6bacff;
 }
-body{background:#06080d radial-gradient(ellipse 63% 60% at 87% -4%,rgba(185,135,30,.16),transparent 70%);}
+body{background:radial-gradient(ellipse 63% 60% at 87% -4%,rgba(185,135,30,.16),transparent 70%),#06080d;}
 .app-layout{grid-template-columns:268px minmax(0,1fr)}
 .sidebar{background:linear-gradient(165deg,#111419 0%,#080b11 75%);border-right:1px solid #5d4a26;box-shadow:12px 0 44px rgba(0,0,0,.34)}
 .sidebar:before{height:7px;background:linear-gradient(90deg,#fcdb8b 0%,#f6bc34 48%,#bf7919 100%)}

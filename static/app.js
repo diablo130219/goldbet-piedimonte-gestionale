@@ -67,7 +67,7 @@ async function init(){
 function brand(){const logo=state.settings.logo_path?`<img class="official-logo" src="${esc(state.settings.logo_path)}?v=${state.logoVersion||1}" alt="Logo GoldBet Piedimonte">`:`<span class="logo-emblem">G</span><span><div class="logo-word"><span class="gold">Gold</span><span class="bet">Bet</span></div><div class="logo-sub">PIEDIMONTE</div></span>`;return `<div class="logo-block">${logo}</div>`;}
 function authScreen(){const setup=state.needsSetup;return `<div class="auth-page"><section class="auth-art"><div class="auth-brand">${brand()}</div><div class="auth-hero"><div class="eyebrow">GOLDBET PIEDIMONTE · SIGNATURE EDITION</div><h1>Le tue casse.<br><span>Al centro di tutto.</span></h1><p>Due casse indipendenti, una sola rubrica. Ogni cifra al suo posto, in tempo reale.</p><div class="auth-highlights"><span>${ico('shield')} Accesso riservato</span><span>${ico('monitor')} Due postazioni</span></div></div><div class="auth-footer">GoldBet Piedimonte · Gestione operativa interna</div></section><section class="auth-form-side"><div class="auth-box"><div class="eyebrow">${setup?'PRIMO AVVIO':'ACCESSO RISERVATO'}</div><h2>${setup?'Configura il gestionale':'Bentornato.'}</h2><p class="intro">${setup?'Crea il profilo amministratore. Sul server online serve anche il codice di attivazione privato.':'Accedi per continuare il tuo turno di lavoro.'}</p><form id="${setup?'setup-form':'login-form'}" autocomplete="on">${setup?`<div class="field"><label class="form-label">Nome amministratore</label><input class="input" name="full_name" placeholder="Nome e cognome" minlength="2" required></div>`:`<div class="field"><label class="form-label">Username</label><input class="input" name="username" placeholder="Inserisci lo username" required autocomplete="username"></div>`}${setup&&state.onlineSetup?`<div class="field"><label class="form-label">Codice di attivazione</label><input class="input" type="password" name="setup_token" placeholder="Codice privato dal servizio hosting" required autocomplete="off"></div>`:''}<div class="field"><label class="form-label">Password</label><input class="input" type="password" name="password" placeholder="${setup?'Almeno 10 caratteri':'La tua password'}" minlength="${setup?'10':'1'}" required autocomplete="${setup?'new-password':'current-password'}"></div><button class="btn btn-primary btn-full" type="submit">${setup?'Crea amministratore':'Accedi al gestionale'} ${ico('arrow')}</button></form><div class="hint" style="margin-top:26px">${ico('shield')}<span>Accesso protetto. Non condividere la password e utilizza il programma solo sulla rete autorizzata.</span></div></div></section></div>`;}
 function menuItem(view,icon,label){const active=(state.view===view||(view==='clients'&&state.view==='client')||(view==='archive'&&state.view==='archiveDetail'))?' active':'';return `<button class="nav-link${active}" data-action="view" data-view="${view}">${ico(icon)}<span>${label}</span>${view==='notifications'&&state.unread?`<span class="badge badge-red pill">${state.unread}</span>`:''}</button>`;}
-function shell(content){const titles={home:'Dashboard',distinta:'Distinta del turno',clients:'Rubrica clienti',client:'Scheda cliente',notifications:'Notifiche',archive:'Archivio distinte',archiveDetail:'Distinta archiviata',close:'Chiusura turno',settings:'Impostazioni'};return `<div class="app-layout"><aside class="sidebar ${state.mobileNav?'open':''}">${brand()}<div class="sidebar-edition"><span class="edition-dot"></span> SIGNATURE 2.0 <span class="edition-no">/ 01</span></div><div class="nav-group-label">Gestione cassa</div><nav>${menuItem('home','home','Dashboard')}${menuItem('distinta','file','Distinta del turno')}${menuItem('clients','users','Rubrica clienti')}${menuItem('notifications','bell','Notifiche')}${menuItem('close','wallet','Chiusura turno')}${menuItem('archive','archive','Archivio distinte')}</nav><div style="margin-top:23px" class="nav-group-label">Sistema</div><nav>${menuItem('settings','settings','Impostazioni')}</nav><div class="sidebar-bottom"><div class="account"><span class="avatar">${esc((state.me.full_name||'?').slice(0,2).toUpperCase())}</span><span><div class="name">${esc(state.me.full_name)}</div><div class="fine">${state.me.role==='admin'?'Amministratore':'Operatore'}</div></span></div><button class="nav-link" data-action="logout">${ico('logout')}Esci dal gestionale</button></div></aside><div class="main-shell"><header class="topbar"><button class="topicon mobile-top" data-action="nav-toggle" aria-label="Apri menu">${ico('menu')}</button><span class="breadcrumb">${titles[state.view]||'Gestionale'}</span><div class="topbar-right"><span class="topbar-sync"><span class="sync-dot"></span> RUBRICA CONDIVISA</span><span class="today">${new Intl.DateTimeFormat('it-IT',{dateStyle:'full',timeZone:'Europe/Rome'}).format(new Date())}</span><div class="cash-toggle"><button class="${state.cash===1?'active':''}" data-action="cash" data-cash="1">Cassa 1</button><button class="${state.cash===2?'active':''}" data-action="cash" data-cash="2">Cassa 2</button></div><button class="topicon" data-action="view" data-view="notifications" title="Notifiche">${ico('bell')}${state.unread?`<span class="count">${Math.min(state.unread,99)}</span>`:''}</button></div></header><div class="page">${content}</div></div></div><nav class="mobile-dock" aria-label="Navigazione rapida">${mobileDock()}</nav>${state.modal?modalHtml():''}`;}
+function shell(content){const titles={home:'Dashboard',distinta:'Distinta del turno',clients:'Rubrica clienti',client:'Scheda cliente',notifications:'Notifiche',archive:'Archivio distinte',archiveDetail:'Distinta archiviata',close:'Chiusura turno',settings:'Impostazioni'};return `<div class="app-layout"><aside class="sidebar ${state.mobileNav?'open':''}">${brand()}<div class="sidebar-edition"><span class="edition-dot"></span> SIGNATURE 2.1 <span class="edition-no">/ 01</span></div><div class="nav-group-label">Gestione cassa</div><nav>${menuItem('home','home','Dashboard')}${menuItem('distinta','file','Distinta del turno')}${menuItem('clients','users','Rubrica clienti')}${menuItem('notifications','bell','Notifiche')}${menuItem('close','wallet','Chiusura turno')}${menuItem('archive','archive','Archivio distinte')}</nav><div style="margin-top:23px" class="nav-group-label">Sistema</div><nav>${menuItem('settings','settings','Impostazioni')}</nav><div class="sidebar-bottom"><div class="account"><span class="avatar">${esc((state.me.full_name||'?').slice(0,2).toUpperCase())}</span><span><div class="name">${esc(state.me.full_name)}</div><div class="fine">${state.me.role==='admin'?'Amministratore':'Operatore'}</div></span></div><button class="nav-link" data-action="logout">${ico('logout')}Esci dal gestionale</button></div></aside><div class="main-shell"><header class="topbar"><button class="topicon mobile-top" data-action="nav-toggle" aria-label="Apri menu">${ico('menu')}</button><span class="breadcrumb">${titles[state.view]||'Gestionale'}</span><div class="topbar-right"><span class="topbar-sync"><span class="sync-dot"></span> RUBRICA CONDIVISA</span><span class="today">${new Intl.DateTimeFormat('it-IT',{dateStyle:'full',timeZone:'Europe/Rome'}).format(new Date())}</span><div class="cash-toggle"><button class="${state.cash===1?'active':''}" data-action="cash" data-cash="1">Cassa 1</button><button class="${state.cash===2?'active':''}" data-action="cash" data-cash="2">Cassa 2</button></div><button class="topicon" data-action="view" data-view="notifications" title="Notifiche">${ico('bell')}${state.unread?`<span class="count">${Math.min(state.unread,99)}</span>`:''}</button></div></header><div class="page">${content}</div></div></div><nav class="mobile-dock" aria-label="Navigazione rapida">${mobileDock()}</nav>${state.modal?modalHtml():''}`;}
 function mobileDock(){
  const items=[['home','home','Home'],['distinta','file','Distinta'],['movement','plus','Nuovo'],['clients','users','Rubrica'],['close','wallet','Chiusura']];
  return items.map(([action,icon,label])=>{const current=action==='clients'&&state.view==='client'||state.view===action;
@@ -213,6 +213,51 @@ document.addEventListener('input',e=>{
  if(e.target.id==='physical-count'){const s=state.overview?.shift;if(s){const cents=eurosToCents(e.target.value);$('#close-preview').innerHTML=closePreview(cents,s.calculated_cents);}}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&state.modal){state.modal=null;render();}});
-// Light polling, not an external push service: both open stations stay synchronized.
-setInterval(()=>{if(!state.me||state.busy||state.modal||['archiveDetail','settings','close'].includes(state.view))return;if(document.activeElement?.matches('input,textarea,select'))return;(async()=>{await refresh({clients:['clients','client'].includes(state.view),archive:state.view==='archive',render:false});if(state.view==='client'&&state.selectedClient)state.selectedClient=await api('/api/clients/'+state.selectedClient.client.id);render();})().catch(()=>{});},3000);
+// Sync in the background without rebuilding the page every few seconds.
+// Only repaint when data actually changes, and never while someone is typing.
+let livePollInProgress = false;
+async function pollLiveData(){
+  if(livePollInProgress || !state.me || state.busy || state.modal || document.hidden ||
+     ['archiveDetail','settings','close'].includes(state.view) ||
+     document.activeElement?.matches('input,textarea,select,[contenteditable="true"]'))return;
+  livePollInProgress=true;
+  const cash=state.cash, view=state.view, clientId=view==='client'?state.selectedClient?.client?.id:null;
+  const needsClients=['clients','client'].includes(view), needsArchive=view==='archive';
+  try{
+    const [overview,notices,clientsData,archiveData,clientData] = await Promise.all([
+      api('/api/overview?cash='+cash),
+      api('/api/notifications'),
+      needsClients?api('/api/clients'):Promise.resolve(null),
+      needsArchive?api('/api/shifts/archive?cash='+cash):Promise.resolve(null),
+      clientId?api('/api/clients/'+clientId):Promise.resolve(null)
+    ]);
+    // Discard a response if the user switched station/view or began editing.
+    if(!state.me || state.busy || state.modal || document.hidden || state.cash!==cash || state.view!==view ||
+       (clientId && state.selectedClient?.client?.id!==clientId) ||
+       document.activeElement?.matches('input,textarea,select,[contenteditable="true"]'))return;
+    const previous=JSON.stringify([
+      state.overview,state.notifications,state.unread,
+      needsClients?state.clients:null,needsArchive?state.archive:null,
+      clientId?state.selectedClient:null
+    ]);
+    const next=JSON.stringify([
+      overview,notices.notifications,notices.unread,
+      needsClients?clientsData.clients:null,needsArchive?archiveData.shifts:null,
+      clientId?clientData:null
+    ]);
+    if(previous===next)return;
+    state.overview=overview;
+    state.notifications=notices.notifications;
+    state.unread=notices.unread;
+    if(needsClients)state.clients=clientsData.clients;
+    if(needsArchive)state.archive=archiveData.shifts;
+    if(clientId)state.selectedClient=clientData;
+    const savedScroll=window.scrollY;
+    render();
+    if(window.scrollY!==savedScroll)window.scrollTo(0,savedScroll);
+  }catch(_error){
+    // A temporary network interruption should not erase the current screen.
+  }finally{livePollInProgress=false;}
+}
+setInterval(pollLiveData,5000);
 init();
