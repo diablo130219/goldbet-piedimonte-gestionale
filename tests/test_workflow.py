@@ -57,7 +57,7 @@ class TestWorkflow(unittest.TestCase):
         s1=self.api(one,'/api/shifts/open',{'cash':1,'initial':'500,00'})['id']
         s2=self.api(two,'/api/shifts/open',{'cash':2,'initial':'300,00'})['id']
         self.assertEqual(self.api(two,'/api/shifts/open',{'cash':1,'initial':'200,00'})['status'],409)
-        self.assertTrue(self.api(one,'/api/shifts/totals',{'shift_id':s1,'green':'2890,85','red':'361,37'})['ok'])
+        self.assertTrue(self.api(one,'/api/shifts/totals',{'shift_id':s1,'blue':'2529,48'})['ok'])
         client=self.api(one,'/api/clients',{'first_name':'Mario','last_name':'Rossi'})['id']
         m1=self.api(one,'/api/movements',{'shift_id':s1,'client_id':client,'kind':'debit','amount':'100,00'})['id']
         self.assertEqual(self.api(two,'/api/movements',{'shift_id':s1,'client_id':client,'kind':'debit','amount':'10,00'})['status'],403)
