@@ -26,10 +26,11 @@ class PostgreSQLConnection:
         return self.raw.execute(sql.replace('?', '%s'), params)
 
     def commit(self):
-        self.raw.commit()
+        # With autocommit=True, explicit BEGIN blocks require explicit SQL COMMIT.
+        self.raw.execute('COMMIT')
 
     def rollback(self):
-        self.raw.rollback()
+        self.raw.execute('ROLLBACK')
 
     def close(self):
         self.raw.close()
