@@ -1,0 +1,24 @@
+# Pubblicazione attraverso GitHub -> Render (piano a pagamento con disco persistente)
+services:
+  - type: web
+    name: goldbet-piedimonte-gestionale
+    runtime: python
+    plan: starter
+    buildCommand: python -m compileall -q server.py
+    startCommand: python server.py
+    healthCheckPath: /healthz
+    disk:
+      name: goldbet-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: GB_DB_PATH
+        value: /var/data/gestionale.sqlite3
+      - key: GB_BRAND_DIR
+        value: /var/data
+      - key: GB_SECURE_COOKIE
+        value: '1'
+      - key: GB_PUBLIC
+        value: '1'
+      - key: GB_SETUP_TOKEN
+        sync: false
