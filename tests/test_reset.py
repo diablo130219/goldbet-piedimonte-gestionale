@@ -49,8 +49,8 @@ class TestAdminReset(unittest.TestCase):
             self.assertEqual(req(operator,'/api/login',{'username':'operator01','password':'OperatorPass123!'})[0],200)
             shift1=req(admin,'/api/shifts/open',{'cash':1,'initial':'325,25'})[1]['id']
             shift2=req(operator,'/api/shifts/open',{'cash':2,'initial':'500,00'})[1]['id']
-            self.assertEqual(req(admin,'/api/shifts/totals',{'shift_id':shift1,'green':'100,00','red':'10,00'})[0],200)
-            self.assertEqual(req(operator,'/api/shifts/totals',{'shift_id':shift2,'green':'50,00','red':'0'})[0],200)
+            self.assertEqual(req(admin,'/api/shifts/totals',{'shift_id':shift1,'blue':'90,00'})[0],200)
+            self.assertEqual(req(operator,'/api/shifts/totals',{'shift_id':shift2,'blue':'50,00'})[0],200)
 
             self.assertEqual(req(admin,'/api/clients',{'first_name':'  ', 'last_name':'   '})[0],400)
             lidl=req(admin,'/api/clients',{'first_name':'LIDL', 'last_name':''})
