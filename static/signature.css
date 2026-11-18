@@ -222,3 +222,295 @@ body{background:radial-gradient(ellipse 63% 60% at 87% -4%,rgba(185,135,30,.16),
 .quick-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media(max-width:1180px){.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.quick-grid{grid-template-columns:1fr}.cash-adjustment-panel .panel-head{align-items:flex-start}}
+
+
+/* === STATION-WIDE THEMES — GoldBet Piedimonte Signature 2.3 ===
+   Station 1 = amethyst/violet. Station 2 = copper.
+   Monetary semantics deliberately remain: BLUE terminal balance,
+   GREEN credit/surplus, RED debit/shortage. Never recolor those results. */
+.app-layout.cash-station-1,
+.modal-layer.cash-station-1,
+.mobile-dock.cash-station-1{
+ --station-accent:#c9b0ff;
+ --station-strong:#8f61df;
+ --station-bright:#e1d1ff;
+ --station-dark:#382067;
+ --station-shadow:rgba(117,68,208,.32);
+ --station-rim:rgba(178,138,253,.5);
+ --station-subtle:rgba(158,111,236,.13);
+ --station-card:rgba(40,30,65,.62);
+ --station-surface:#1f1b33;
+ --station-hero:linear-gradient(113deg,#dfd1ff 0%,#b39af4 30%,#9771eb 61%,#7045bd 100%);
+ --station-button:linear-gradient(135deg,#decaff 0%,#aa85ef 49%,#8d5ad8 100%);
+ --station-on-color:#24113f;
+ --station-note:#3d225f;
+}
+.app-layout.cash-station-2,
+.modal-layer.cash-station-2,
+.mobile-dock.cash-station-2{
+ --station-accent:#f1b38d;
+ --station-strong:#c0784d;
+ --station-bright:#ffe0c9;
+ --station-dark:#6e341d;
+ --station-shadow:rgba(180,91,50,.3);
+ --station-rim:rgba(238,160,116,.5);
+ --station-subtle:rgba(206,114,71,.13);
+ --station-card:rgba(66,39,32,.57);
+ --station-surface:#2e2223;
+ --station-hero:linear-gradient(113deg,#ffdbc1 0%,#f0b38e 30%,#d88457 61%,#a75332 100%);
+ --station-button:linear-gradient(135deg,#ffdbbc 0%,#e99f73 49%,#c27242 100%);
+ --station-on-color:#32190f;
+ --station-note:#572917;
+}
+/* The main page itself changes theme, not just the station switch. */
+.app-layout.cash-station-1{
+ background:radial-gradient(ellipse 70% 48% at 78% 4%,rgba(122,67,211,.23),transparent 75%),#080914;
+}
+.app-layout.cash-station-2{
+ background:radial-gradient(ellipse 70% 48% at 78% 4%,rgba(194,102,56,.2),transparent 75%),#0e0b0c;
+}
+.app-layout[class*="cash-station-"] .main-shell{
+ background:radial-gradient(ellipse 66% 30% at 85% 0%,var(--station-subtle),transparent 78%);
+}
+.app-layout[class*="cash-station-"] .sidebar{
+ background:linear-gradient(166deg,var(--station-surface),#0c0d16 63%,#070910)!important;
+ border-right:1px solid var(--station-rim)!important;
+ box-shadow:12px 0 44px rgba(0,0,0,.29);
+}
+.app-layout[class*="cash-station-"] .sidebar:before{
+ background:linear-gradient(90deg,var(--station-bright),var(--station-strong),var(--station-dark))!important;
+}
+.app-layout[class*="cash-station-"] .logo-emblem{
+ background:var(--station-button)!important;
+ border-color:var(--station-rim)!important;
+ color:var(--station-on-color)!important;
+ box-shadow:0 8px 26px var(--station-shadow)!important;
+}
+.app-layout[class*="cash-station-"] .logo-word .gold{
+ color:var(--station-bright)!important;
+ -webkit-text-fill-color:var(--station-bright)!important;
+}
+.app-layout[class*="cash-station-"] .logo-sub{color:var(--station-accent)}
+.app-layout[class*="cash-station-"] .sidebar-edition{
+ background:var(--station-subtle)!important;
+ color:var(--station-bright)!important;
+ border-color:var(--station-rim)!important;
+}
+.app-layout[class*="cash-station-"] .nav-group-label{color:var(--station-accent)}
+.app-layout[class*="cash-station-"] .nav-link.active{
+ background:var(--station-button)!important;
+ color:var(--station-on-color)!important;
+ border-color:var(--station-bright)!important;
+ box-shadow:0 9px 25px var(--station-shadow)!important;
+}
+.app-layout[class*="cash-station-"] .nav-link.active .icon{
+ color:var(--station-on-color)!important;
+}
+.app-layout[class*="cash-station-"] .nav-link:hover:not(.active){
+ background:var(--station-subtle)!important;
+ color:var(--station-bright)!important;
+}
+.app-layout[class*="cash-station-"] .sidebar-bottom .account{
+ background:var(--station-card);border-color:var(--station-rim);
+}
+.app-layout[class*="cash-station-"] .sidebar-bottom .avatar{
+ background:var(--station-subtle);color:var(--station-bright);
+}
+.app-layout[class*="cash-station-"] .topbar{
+ border-bottom:2px solid var(--station-strong)!important;
+ background:linear-gradient(100deg,#10101b,var(--station-surface),#0e1119)!important;
+}
+.app-layout[class*="cash-station-"] .breadcrumb{color:var(--station-bright)!important}
+.app-layout[class*="cash-station-"] .page-title .eyebrow{color:var(--station-bright)!important}
+.app-layout[class*="cash-station-"] .page-title h1{color:#fdfcff}
+.app-layout[class*="cash-station-"] .topicon:not(:has(.count)){
+ border-color:var(--station-rim);
+}
+.app-layout[class*="cash-station-"] .topicon:hover{
+ border-color:var(--station-bright);
+}
+/* Full-size hero replaces the old gold banner on the opening screen. */
+.app-layout[class*="cash-station-"] .welcome-banner,
+.app-layout[class*="cash-station-"] .command-hero{
+ background:var(--station-hero)!important;
+ border:1px solid var(--station-bright)!important;
+ box-shadow:0 25px 60px var(--station-shadow),inset 0 2px rgba(255,255,255,.28)!important;
+ color:var(--station-on-color)!important;
+}
+.app-layout[class*="cash-station-"] .welcome-banner .banner-copy strong,
+.app-layout[class*="cash-station-"] .command-hero .banner-copy strong{
+ color:var(--station-on-color)!important;
+ text-shadow:none!important;
+}
+.app-layout[class*="cash-station-"] .welcome-banner .banner-kicker,
+.app-layout[class*="cash-station-"] .welcome-banner .banner-copy p,
+.app-layout[class*="cash-station-"] .command-hero .banner-kicker,
+.app-layout[class*="cash-station-"] .command-hero .banner-copy p{
+ color:var(--station-note)!important;
+}
+.app-layout[class*="cash-station-"] .welcome-banner .banner-mark,
+.app-layout[class*="cash-station-"] .command-hero .banner-mark{
+ background:var(--station-dark)!important;
+ border-color:var(--station-dark)!important;
+ color:var(--station-bright)!important;
+}
+.app-layout[class*="cash-station-"] .welcome-banner .banner-mark .icon,
+.app-layout[class*="cash-station-"] .command-hero .banner-mark .icon{
+ color:var(--station-bright)!important;
+}
+.app-layout[class*="cash-station-"] .welcome-banner .banner-chip,
+.app-layout[class*="cash-station-"] .command-hero .banner-chip{
+ background:var(--station-dark)!important;
+ color:#fff!important;
+ border:1px solid var(--station-rim)!important;
+}
+.app-layout[class*="cash-station-"] .command-status span{
+ background:rgba(255,255,255,.16)!important;
+ color:var(--station-on-color)!important;
+ border-color:rgba(45,21,55,.22)!important;
+}
+/* Opening, submitting, saving and navigating are themed consistently. */
+.app-layout[class*="cash-station-"] .btn-primary,
+.modal-layer[class*="cash-station-"] .btn-primary{
+ background:var(--station-button)!important;
+ color:var(--station-on-color)!important;
+ border:1px solid var(--station-bright)!important;
+ box-shadow:0 10px 23px var(--station-shadow)!important;
+}
+.app-layout[class*="cash-station-"] .btn-primary:hover:not(:disabled),
+.modal-layer[class*="cash-station-"] .btn-primary:hover:not(:disabled){
+ filter:brightness(1.08);
+ box-shadow:0 14px 31px var(--station-shadow)!important;
+}
+.app-layout[class*="cash-station-"] .btn-secondary,
+.modal-layer[class*="cash-station-"] .btn-secondary{
+ color:var(--station-bright);
+ border-color:var(--station-rim);
+ background:var(--station-subtle);
+}
+.app-layout[class*="cash-station-"] .btn-ghost:hover,
+.modal-layer[class*="cash-station-"] .btn-ghost:hover{
+ border-color:var(--station-rim);color:var(--station-bright);
+}
+/* Distinta, client list, archive, notifications, settings: station-specific accent. */
+.app-layout[class*="cash-station-"] .panel:not(.archive-blue-only .panel):not(.blue-distinta-stats>.panel:first-child){
+ border-color:rgba(164,141,192,.26);
+}
+.app-layout.cash-station-1 .panel:not(.archive-blue-only .panel):not(.blue-distinta-stats>.panel:first-child){border-color:rgba(159,122,219,.29)}
+.app-layout.cash-station-2 .panel:not(.archive-blue-only .panel):not(.blue-distinta-stats>.panel:first-child){border-color:rgba(199,129,91,.29)}
+.app-layout[class*="cash-station-"] .panel-head h2{color:#fbf7ff}
+.app-layout[class*="cash-station-"] .badge-gold{
+ background:var(--station-subtle)!important;
+ color:var(--station-bright)!important;
+ border-color:var(--station-rim)!important;
+}
+.app-layout[class*="cash-station-"] .action-panel{
+ background:linear-gradient(115deg,var(--station-card),#141c2b)!important;
+ border-color:var(--station-rim)!important;
+}
+.app-layout[class*="cash-station-"] .action-panel:before{
+ background:linear-gradient(90deg,var(--station-dark),var(--station-bright),var(--station-strong))!important;
+}
+.app-layout[class*="cash-station-"] .quick{
+ border-color:var(--station-rim)!important;
+ background:linear-gradient(140deg,var(--station-card),#161d2c)!important;
+}
+.app-layout[class*="cash-station-"] .quick:hover{
+ box-shadow:0 8px 26px var(--station-shadow);
+ border-color:var(--station-accent)!important;
+}
+.app-layout[class*="cash-station-"] .quickicon{
+ background:var(--station-button)!important;
+ border-color:var(--station-bright)!important;
+ color:var(--station-on-color)!important;
+}
+.app-layout[class*="cash-station-"] .quickicon .icon{color:var(--station-on-color)!important}
+.app-layout[class*="cash-station-"] .count-card{
+ border-top:3px solid var(--station-strong)!important;
+}
+.app-layout[class*="cash-station-"] .directory-panel .alphabet-key.selected{
+ background:var(--station-button)!important;
+ color:var(--station-on-color)!important;
+}
+.app-layout[class*="cash-station-"] .table th{color:var(--station-bright)!important}
+.app-layout[class*="cash-station-"] .table tbody tr.client-letter td{
+ background:var(--station-subtle)!important;
+ color:var(--station-bright)!important;
+}
+.app-layout[class*="cash-station-"] .client-identity-hero,
+.app-layout[class*="cash-station-"] .closing-hero{
+ background:linear-gradient(112deg,var(--station-card),#131c2b 80%)!important;
+ border-color:var(--station-rim)!important;
+ box-shadow:0 18px 42px var(--station-shadow);
+}
+.app-layout[class*="cash-station-"] .client-identity-hero:before,
+.app-layout[class*="cash-station-"] .closing-hero:before{
+ background:var(--station-strong)!important;
+}
+.app-layout[class*="cash-station-"] .closing-tag,
+.app-layout[class*="cash-station-"] .identity-eyebrow{
+ color:var(--station-bright)!important;
+}
+.app-layout[class*="cash-station-"] .cash-adjustment-panel{
+ border-color:var(--station-rim)!important;
+ background:linear-gradient(130deg,var(--station-card),#101b2a)!important;
+}
+.app-layout[class*="cash-station-"] .cash-adjustment-panel .panel-head h2{color:var(--station-bright)}
+/* Input focus and interactive outlines change with the selected station. */
+.app-layout[class*="cash-station-"] :is(.input,.select,.textarea):focus,
+.modal-layer[class*="cash-station-"] :is(.input,.select,.textarea):focus,
+.app-layout[class*="cash-station-"] .searchbar:focus-within{
+ border-color:var(--station-accent)!important;
+ box-shadow:0 0 0 3px var(--station-shadow)!important;
+}
+.app-layout[class*="cash-station-"] :is(button,a):focus-visible,
+.modal-layer[class*="cash-station-"] :is(button,a):focus-visible,
+.mobile-dock[class*="cash-station-"] button:focus-visible{
+ outline:2px solid var(--station-bright);
+ outline-offset:3px;
+}
+/* Modals and mobile dock live outside .app-layout; carry the same theme. */
+.modal-layer[class*="cash-station-"] .modal{
+ border:1px solid var(--station-rim)!important;
+ box-shadow:0 36px 95px rgba(0,0,0,.68),0 0 35px var(--station-shadow)!important;
+}
+.modal-layer[class*="cash-station-"] .modal-head{
+ background:linear-gradient(100deg,var(--station-surface),#151d2d)!important;
+ border-bottom:2px solid var(--station-strong)!important;
+}
+.modal-layer[class*="cash-station-"] .modal-head h2{color:var(--station-bright)!important}
+.modal-layer[class*="cash-station-"] .modal-kicker{color:var(--station-accent)}
+.modal-layer[class*="cash-station-"] .radio-card:has(input:checked){
+ border-color:var(--station-bright)!important;
+ background:var(--station-subtle)!important;
+}
+.modal-layer[class*="cash-station-"] input[type="radio"]{accent-color:var(--station-strong)}
+.mobile-dock[class*="cash-station-"]{
+ border-top:2px solid var(--station-strong)!important;
+ background:linear-gradient(120deg,var(--station-surface),#0c101b)!important;
+}
+.mobile-dock[class*="cash-station-"] .dock-item.active{
+ color:var(--station-bright)!important;
+ background:var(--station-subtle)!important;
+}
+.mobile-dock[class*="cash-station-"] .dock-action{
+ background:var(--station-button)!important;
+ color:var(--station-on-color)!important;
+ box-shadow:0 7px 23px var(--station-shadow)!important;
+}
+@media(max-width:680px){
+ .app-layout[class*="cash-station-"] .welcome-banner{min-height:200px}
+ .app-layout[class*="cash-station-"] .page-title .eyebrow{letter-spacing:1.8px}
+}
+/* Preserve printed figures legibly rather than using dark decorative backgrounds. */
+@media print{
+ .app-layout[class*="cash-station-"] .main-shell,
+ .app-layout[class*="cash-station-"] .page{background:#fff!important}
+ .app-layout[class*="cash-station-"] .client-identity-hero,
+ .app-layout[class*="cash-station-"] .closing-hero,
+ .app-layout[class*="cash-station-"] .panel{
+  background:#fff!important;color:#111!important;box-shadow:none!important;border-color:#888!important
+ }
+ .app-layout[class*="cash-station-"] .table th,
+ .app-layout[class*="cash-station-"] .panel-head h2{color:#111!important}
+}

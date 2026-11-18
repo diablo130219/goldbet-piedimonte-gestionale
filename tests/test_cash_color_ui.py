@@ -32,5 +32,21 @@ class CashColorUiTest(unittest.TestCase):
         self.assertIn('.archive-balance.surplus', css)
 
 
+    def test_entire_app_uses_station_specific_theme(self):
+        js=(ROOT / "static/app.js").read_text()
+        css=(ROOT / "static/signature.css").read_text()
+        html=(ROOT / "static/index.html").read_text()
+        self.assertIn('SIGNATURE 2.3', js)
+        self.assertIn('class="mobile-dock cash-station-${state.cash}"', js)
+        self.assertIn('class="modal-layer cash-station-${state.cash}"', js)
+        self.assertIn('cash-station-1', css)
+        self.assertIn('cash-station-2', css)
+        self.assertIn('--station-hero:linear-gradient(113deg,#dfd1ff', css)
+        self.assertIn('--station-hero:linear-gradient(113deg,#ffdbc1', css)
+        for element in ('.welcome-banner','.btn-primary','.nav-link.active','.closing-hero','.client-identity-hero','.cash-adjustment-panel','.topbar'):
+            self.assertIn(element, css)
+        self.assertIn('theme-full-cassa-20261118-v1',html)
+        self.assertIn("Monetary semantics deliberately remain",css)
+
 if __name__ == '__main__':
     unittest.main()
