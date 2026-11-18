@@ -109,7 +109,8 @@ def init_db():
           CREATE TABLE IF NOT EXISTS clients (
             id INTEGER PRIMARY KEY, first_name TEXT NOT NULL, last_name TEXT NOT NULL,
             created_at TEXT NOT NULL,
-            opening_debt_cents INTEGER NOT NULL DEFAULT 0, opening_debt_at TEXT
+            opening_debt_cents INTEGER NOT NULL DEFAULT 0, opening_debt_at TEXT,
+            opening_credit_cents INTEGER NOT NULL DEFAULT 0, opening_credit_at TEXT
           );
           CREATE TABLE IF NOT EXISTS shifts (
             id INTEGER PRIMARY KEY, cash_number INTEGER NOT NULL CHECK(cash_number IN (1,2)),
@@ -175,6 +176,10 @@ def init_db():
             c.execute('ALTER TABLE clients ADD COLUMN opening_debt_cents INTEGER NOT NULL DEFAULT 0')
         if 'opening_debt_at' not in client_cols:
             c.execute('ALTER TABLE clients ADD COLUMN opening_debt_at TEXT')
+        if 'opening_credit_cents' not in client_cols:
+            c.execute('ALTER TABLE clients ADD COLUMN opening_credit_cents INTEGER NOT NULL DEFAULT 0')
+        if 'opening_credit_at' not in client_cols:
+            c.execute('ALTER TABLE clients ADD COLUMN opening_credit_at TEXT')
 
 
 def hash_password(password, salt=None):
@@ -222,11 +227,14 @@ def client_position(c, client_id, exclude_id=None):
         rows=c.execute("SELECT id,kind,amount_cents,created_at FROM movements "
                        "WHERE client_id=? AND voided_at IS NULL AND id<>? ORDER BY id",
                        (client_id,exclude_id)).fetchall()
-    opening=c.execute('SELECT opening_debt_cents,opening_debt_at,created_at '
+    opening=c.execute('SELECT opening_debt_cents,opening_debt_at,'
+                      'opening_credit_cents,opening_credit_at,created_at '
                       'FROM clients WHERE id=?',(client_id,)).fetchone()
     if opening is None: raise ValueError('Cliente non trovato.')
-    held=0
+    held=int(opening['opening_credit_cents'] or 0)
     outstanding=[]  # oldest-first [timestamp, remaining cents]
+    if held and int(opening['opening_debt_cents'] or 0):
+        raise ValueError('Il saldo iniziale non può essere contemporaneamente a debito e a credito.')
     if int(opening['opening_debt_cents'] or 0)>0:
         # Imported debt is customer ledger history, never a cash movement.
         outstanding.append([opening['opening_debt_at'] or opening['created_at'],
@@ -293,6 +301,32 @@ def clean_opening_debt(body):
     if old_day>datetime.now(ZoneInfo('Europe/Rome')).date():
         raise ApiError(400,'La data del debito non può essere nel futuro.')
     return opening_cents,datetime.combine(old_day,datetime.min.time(),tzinfo=timezone.utc).isoformat()
+
+
+def clean_opening_balance(body):
+    """Initial debt OR held customer credit. Neither is a movement in today's till."""
+    position=str(body.get('opening_position') or '').strip()
+    if not position:
+        # Preserve existing clients integrations, which send only opening_debt.
+        debt,at=clean_opening_debt(body)
+        return debt,at,0,None
+    if position not in ('zero','debt','credit'):
+        raise ApiError(400,'Scegli saldo zero, debito del cliente o credito a suo favore.')
+    raw=body.get('opening_amount','')
+    amount=money(raw if str(raw or '').strip() else '0')
+    date_input=str(body.get('opening_date') or '').strip()
+    if position=='zero':
+        if amount or date_input:
+            raise ApiError(400,'Per saldo zero non inserire importo o data iniziale.')
+        return 0,None,0,None
+    if amount<=0:
+        raise ApiError(400,'Inserisci un importo iniziale maggiore di zero.')
+    # Use the existing calendar/UTC date validation for either direction.
+    cents,at=clean_opening_debt({'opening_debt':str(Decimal(amount)/100),
+                                 'opening_debt_date':date_input})
+    if position=='debt':
+        return cents,at,0,None
+    return 0,None,cents,at
 
 
 def serialize_client(c, row):
@@ -583,18 +617,19 @@ class Handler(BaseHTTPRequestHandler):
                     if path == '/api/clients' and method == 'POST':
                         b = self.body()
                         first, last = clean_client_names(b)
-                        opening_cents,opening_at=clean_opening_debt(b)
+                        opening_cents,opening_at,credit_cents,credit_at=clean_opening_balance(b)
                         c.execute('BEGIN IMMEDIATE')
                         dup = c.execute('SELECT id FROM clients WHERE LOWER(first_name)=LOWER(?) AND LOWER(last_name)=LOWER(?)',(first,last)).fetchone()
                         if dup and not b.get('allow_homonym'):
                             raise ApiError(409, 'Cliente con lo stesso nome già presente. Controlla la rubrica; se omonimo, conferma l’inserimento.')
-                        cur = c.execute('INSERT INTO clients(first_name,last_name,created_at,opening_debt_cents,opening_debt_at) VALUES(?,?,?,?,?) RETURNING id',
-                                        (first,last,now_utc(),opening_cents,opening_at))
+                        cur = c.execute('INSERT INTO clients(first_name,last_name,created_at,opening_debt_cents,opening_debt_at,opening_credit_cents,opening_credit_at) VALUES(?,?,?,?,?,?,?) RETURNING id',
+                                        (first,last,now_utc(),opening_cents,opening_at,credit_cents,credit_at))
                         new_id = cur.fetchone()['id']
                         if opening_cents:
                             reconcile_client(c,new_id)
                         audit(c,user['id'],'create','client',new_id,
-                              {'opening_debt_cents':opening_cents,'opening_debt_at':opening_at})
+                              {'opening_debt_cents':opening_cents,'opening_debt_at':opening_at,
+                               'opening_credit_cents':credit_cents,'opening_credit_at':credit_at})
                         c.commit()
                         return self.respond(201, {'id': new_id})
                     match = re.fullmatch(r'/api/clients/(\d+)', path)
