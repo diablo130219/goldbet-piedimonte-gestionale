@@ -1,5 +1,5 @@
 """End-to-end tests: non-client entries do not touch the rubrica or cross tills."""
-import http.cookiejar
+from http import cookiejar
 import json
 import tempfile
 import threading
@@ -28,7 +28,7 @@ class NonClientCashMovements(unittest.TestCase):
             url=f'http://127.0.0.1:{http.server_address[1]}'
 
             def opener():
-                return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+                return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookiejar.CookieJar()))
 
             def call(user,path,payload=None):
                 data=json.dumps(payload).encode('utf-8') if payload is not None else None
