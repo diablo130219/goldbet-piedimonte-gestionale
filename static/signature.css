@@ -213,3 +213,12 @@ body{background:radial-gradient(ellipse 63% 60% at 87% -4%,rgba(185,135,30,.16),
 @media print{
  .archive-balance,.archive-difference-row .value{background:transparent!important;border:1px solid #888!important;color:#111!important}
 }
+/* Non-client cash movements: stay visually separate from the shared client ledger. */
+.cash-adjustment-panel{border-color:rgba(167,137,227,.38);background:linear-gradient(130deg,rgba(31,35,60,.95),rgba(16,27,42,.95))}
+.cash-adjustment-panel .panel-head{flex-wrap:wrap}
+.cash-adjustment-panel .panel-head h2{color:#e5d7ff}
+.cash-adjustment-panel .table td strong{font-weight:850}
+.cash-adjustment-panel .badge-green,.cash-adjustment-panel .badge-red{font-weight:850}
+.quick-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1180px){.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.quick-grid{grid-template-columns:1fr}.cash-adjustment-panel .panel-head{align-items:flex-start}}
