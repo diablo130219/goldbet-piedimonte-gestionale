@@ -30,8 +30,11 @@ class PostgreSQLCompatibility(unittest.TestCase):
     def test_postgres_numeric_aggregates_are_json_serializable(self):
         class FakeAggregateDb:
             def execute(self, sql, params=()):
+                self.sql = sql
                 return self
             def fetchone(self):
+                if 'FROM cash_adjustments' in self.sql:
+                    return {'cash_in': Decimal('0'), 'cash_out': Decimal('0')}
                 return {'credits': Decimal('8000'), 'debits': Decimal('1500')}
 
         shift = {'id': 13, 'green_cents': 289085, 'red_cents': 36137,
