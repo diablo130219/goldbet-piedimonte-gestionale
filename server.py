@@ -128,7 +128,7 @@ def init_db():
             id INTEGER PRIMARY KEY, client_id INTEGER NOT NULL REFERENCES clients(id),
             shift_id INTEGER NOT NULL REFERENCES shifts(id),
             user_id INTEGER NOT NULL REFERENCES users(id),
-            kind TEXT NOT NULL CHECK(kind IN ('debit','credit')),
+            kind TEXT NOT NULL CHECK(kind IN ('debit','credit','win','withdrawal')),
             amount_cents INTEGER NOT NULL CHECK(amount_cents>0),
             note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
             voided_at TEXT, voided_by INTEGER REFERENCES users(id), void_reason TEXT
@@ -202,21 +202,52 @@ def as_dict(row):
     return dict(row) if row is not None else None
 
 
-def client_debt(c, client_id):
-    rows = c.execute('SELECT kind,amount_cents,created_at FROM movements '
-                     'WHERE client_id=? AND voided_at IS NULL ORDER BY id', (client_id,)).fetchall()
-    credits = sum(r['amount_cents'] for r in rows if r['kind'] == 'credit')
-    debit_sum = sum(r['amount_cents'] for r in rows if r['kind'] == 'debit')
-    total = debit_sum - credits
-    first_unpaid = None
+def client_position(c, client_id, exclude_id=None):
+    """Signed client ledger: positive is held credit, negative is customer debt.
+
+    Repayments and credited winnings settle the oldest outstanding bet first.
+    Withdrawals spend only held credit and never create customer debt.
+    """
+    if exclude_id is None:
+        rows=c.execute("SELECT id,kind,amount_cents,created_at FROM movements "
+                       "WHERE client_id=? AND voided_at IS NULL ORDER BY id",
+                       (client_id,)).fetchall()
+    else:
+        rows=c.execute("SELECT id,kind,amount_cents,created_at FROM movements "
+                       "WHERE client_id=? AND voided_at IS NULL AND id<>? ORDER BY id",
+                       (client_id,exclude_id)).fetchall()
+    held=0
+    outstanding=[]  # oldest-first [timestamp, remaining cents]
     for r in rows:
-        if r['kind'] == 'debit':
-            if credits >= r['amount_cents']:
-                credits -= r['amount_cents']
-            else:
-                first_unpaid = r['created_at']
-                break
-    return max(0, total), first_unpaid
+        amount=int(r['amount_cents'])
+        kind=r['kind']
+        if kind=='debit':
+            used=min(held,amount)
+            held-=used
+            if amount>used:
+                outstanding.append([r['created_at'],amount-used])
+        elif kind in ('credit','win'):
+            while amount and outstanding:
+                applied=min(amount,outstanding[0][1])
+                amount-=applied
+                outstanding[0][1]-=applied
+                if outstanding[0][1]==0:
+                    outstanding.pop(0)
+            held+=amount
+        elif kind=='withdrawal':
+            if amount>held:
+                return None,None,False
+            held-=amount
+        else:
+            raise ValueError('Movimento cliente non riconosciuto.')
+    owed=sum(item[1] for item in outstanding)
+    return held-owed,(outstanding[0][0] if outstanding else None),True
+
+
+def client_debt(c, client_id):
+    balance,first,valid=client_position(c,client_id)
+    if not valid: raise ValueError('Storico del credito cliente incoerente.')
+    return max(0,-balance),first
 
 
 def clean_client_names(body):
@@ -232,14 +263,17 @@ def clean_client_names(body):
 
 def serialize_client(c, row):
     result = as_dict(row)
-    outstanding, first = client_debt(c, row['id'])
+    balance, first, valid = client_position(c, row['id'])
+    if not valid: raise ValueError('Storico del credito cliente incoerente.')
+    outstanding = max(0, -balance)
     days = None
     overdue = False
     if first:
         diff = datetime.now(timezone.utc) - datetime.fromisoformat(first)
         days = max(0, int(diff.total_seconds() // 86400))
         overdue = diff >= timedelta(days=7)
-    result.update(debt_cents=outstanding, first_unpaid_at=first,
+    result.update(balance_cents=balance, credit_cents=max(0,balance),
+                  debt_cents=outstanding, first_unpaid_at=first,
                   days_open=days, overdue=overdue)
     return result
 
@@ -274,7 +308,9 @@ def refresh_overdues(c):
 def shift_totals(c, shift):
     r = c.execute('SELECT '
                   "COALESCE(SUM(CASE WHEN kind='credit' THEN amount_cents ELSE 0 END),0) AS credits,"
-                  "COALESCE(SUM(CASE WHEN kind='debit' THEN amount_cents ELSE 0 END),0) AS debits "
+                  "COALESCE(SUM(CASE WHEN kind='debit' THEN amount_cents ELSE 0 END),0) AS debits,"
+                  "COALESCE(SUM(CASE WHEN kind='win' THEN amount_cents ELSE 0 END),0) AS winnings,"
+                  "COALESCE(SUM(CASE WHEN kind='withdrawal' THEN amount_cents ELSE 0 END),0) AS withdrawals "
                   'FROM movements WHERE shift_id=? AND voided_at IS NULL', (shift['id'],)).fetchone()
     result = as_dict(shift)
     # New shifts use the manually entered terminal balance. Older shifts retain
@@ -289,6 +325,8 @@ def shift_totals(c, shift):
     # integer cents; convert before computing totals or serializing JSON.
     result['entries_cents'] = int(r['credits'])
     result['exits_cents'] = int(r['debits'])
+    result['winnings_held_cents'] = int(r['winnings'])
+    result['withdrawals_cents'] = int(r['withdrawals'])
     extra = c.execute(
         "SELECT COALESCE(SUM(CASE WHEN direction='in' THEN amount_cents ELSE 0 END),0) AS cash_in,"
         " COALESCE(SUM(CASE WHEN direction='out' THEN amount_cents ELSE 0 END),0) AS cash_out"
@@ -299,6 +337,7 @@ def shift_totals(c, shift):
     # Separate cash entries impact the till, never a customer balance.
     result['calculated_cents'] = (result['blue_cents'] + result['initial_cents']
                                   + result['entries_cents'] - result['exits_cents']
+                                  + result['winnings_held_cents'] - result['withdrawals_cents']
                                   + result['other_in_cents'] - result['other_out_cents'])
     return result
 
@@ -585,7 +624,8 @@ class Handler(BaseHTTPRequestHandler):
                         try: sid, cid = int(b.get('shift_id',0)), int(b.get('client_id',0))
                         except Exception: raise ApiError(400,'Distinta o cliente non valido.')
                         kind = b.get('kind')
-                        if kind not in ('debit','credit'): raise ApiError(400,'Tipo movimento non valido.')
+                        if kind not in ('debit','credit','win','withdrawal'):
+                            raise ApiError(400,'Tipo movimento non valido.')
                         amount = money(b.get('amount',''))
                         if amount<=0: raise ApiError(400,'L’importo deve essere maggiore di zero.')
                         note = str(b.get('note','')).strip()[:300]
@@ -593,13 +633,15 @@ class Handler(BaseHTTPRequestHandler):
                         shift = self.authorized_shift(c,user,sid)
                         if not c.execute('SELECT 1 FROM clients WHERE id=?',(cid,)).fetchone():
                             raise ApiError(404,'Cliente non trovato.')
-                        previous, _ = client_debt(c,cid)
-                        if kind=='credit' and amount>previous:
-                            raise ApiError(400,f'Pagamento superiore al debito residuo ({euros(previous)} €).')
+                        before_balance,_,valid=client_position(c,cid)
+                        if not valid: raise ApiError(409,'Storico cliente non coerente.')
+                        previous=max(0,-before_balance)
+                        if kind=='withdrawal' and amount>max(0,before_balance):
+                            raise ApiError(400,f'Credito non sufficiente: disponibili {euros(max(0,before_balance))} €.')
                         cur = c.execute('INSERT INTO movements(client_id,shift_id,user_id,kind,amount_cents,note,created_at) VALUES(?,?,?,?,?,?,?) RETURNING id',
                                   (cid,sid,user['id'],kind,amount,note,now_utc()))
                         new_id = cur.fetchone()['id']
-                        reconcile_client(c,cid,previous,amount if kind=='credit' else 0)
+                        reconcile_client(c,cid,previous,amount if kind in ('credit','win') else 0)
                         audit(c,user['id'],'create','movement',new_id,{'client':cid,'kind':kind,'amount_cents':amount,'cash':shift['cash_number']})
                         c.commit()
                         return self.respond(201, {'id':new_id})
@@ -615,12 +657,11 @@ class Handler(BaseHTTPRequestHandler):
                         self.authorized_shift(c,user,movement['shift_id'])
                         cid=movement['client_id']
                         prior,_ = client_debt(c,cid)
-                        # A historical debit cannot be voided when it would invalidate later repayments.
-                        rows=c.execute('SELECT * FROM movements WHERE client_id=? AND voided_at IS NULL AND id<>? ORDER BY id',(cid,mid)).fetchall()
-                        running=0
-                        for row in rows:
-                            running += row['amount_cents'] if row['kind']=='debit' else -row['amount_cents']
-                            if running<0: raise ApiError(409,'Annullamento impossibile: renderebbe superiore al debito un pagamento successivo.')
+                        # Ensure that cancelling a prior win or deposit will not leave
+                        # a subsequent credit withdrawal without sufficient funds.
+                        _,_,valid=client_position(c,cid,exclude_id=mid)
+                        if not valid:
+                            raise ApiError(409,'Impossibile annullare: un ritiro successivo usa già questo credito.')
                         c.execute('UPDATE movements SET voided_at=?,voided_by=?,void_reason=? WHERE id=?',
                                   (now_utc(),user['id'],reason,mid))
                         reconcile_client(c,cid)
