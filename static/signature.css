@@ -521,3 +521,9 @@ body{background:radial-gradient(ellipse 63% 60% at 87% -4%,rgba(185,135,30,.16),
 .wallet-kind-radio .radio-card{min-width:0;white-space:normal;line-height:1.35}
 @media(max-width:1100px){.app-layout .directory-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.wallet-kind-radio{grid-template-columns:1fr}.app-layout .directory-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Initial customer debt is not a shift transaction. */
+.opening-debt-history{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;background:rgba(184,138,63,.08);border-bottom:1px solid rgba(255,211,138,.23)}
+.opening-debt-history .badge{margin-bottom:7px}
+.opening-debt-history strong{font-size:22px;white-space:nowrap}
+@media(max-width:620px){.opening-debt-history{align-items:flex-start;flex-direction:column}.opening-debt-history strong{font-size:20px}}

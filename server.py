@@ -108,7 +108,8 @@ def init_db():
           );
           CREATE TABLE IF NOT EXISTS clients (
             id INTEGER PRIMARY KEY, first_name TEXT NOT NULL, last_name TEXT NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            opening_debt_cents INTEGER NOT NULL DEFAULT 0, opening_debt_at TEXT
           );
           CREATE TABLE IF NOT EXISTS shifts (
             id INTEGER PRIMARY KEY, cash_number INTEGER NOT NULL CHECK(cash_number IN (1,2)),
@@ -169,6 +170,11 @@ def init_db():
         cols = {row['name'] for row in c.execute('PRAGMA table_info(shifts)')}
         if 'manual_blue_cents' not in cols:
             c.execute('ALTER TABLE shifts ADD COLUMN manual_blue_cents INTEGER')
+        client_cols = {row['name'] for row in c.execute('PRAGMA table_info(clients)')}
+        if 'opening_debt_cents' not in client_cols:
+            c.execute('ALTER TABLE clients ADD COLUMN opening_debt_cents INTEGER NOT NULL DEFAULT 0')
+        if 'opening_debt_at' not in client_cols:
+            c.execute('ALTER TABLE clients ADD COLUMN opening_debt_at TEXT')
 
 
 def hash_password(password, salt=None):
@@ -216,8 +222,15 @@ def client_position(c, client_id, exclude_id=None):
         rows=c.execute("SELECT id,kind,amount_cents,created_at FROM movements "
                        "WHERE client_id=? AND voided_at IS NULL AND id<>? ORDER BY id",
                        (client_id,exclude_id)).fetchall()
+    opening=c.execute('SELECT opening_debt_cents,opening_debt_at,created_at '
+                      'FROM clients WHERE id=?',(client_id,)).fetchone()
+    if opening is None: raise ValueError('Cliente non trovato.')
     held=0
     outstanding=[]  # oldest-first [timestamp, remaining cents]
+    if int(opening['opening_debt_cents'] or 0)>0:
+        # Imported debt is customer ledger history, never a cash movement.
+        outstanding.append([opening['opening_debt_at'] or opening['created_at'],
+                            int(opening['opening_debt_cents'])])
     for r in rows:
         amount=int(r['amount_cents'])
         kind=r['kind']
@@ -259,6 +272,27 @@ def clean_client_names(body):
     if len(first) > 70 or len(last) > 70:
         raise ApiError(400, 'Nome e cognome possono contenere al massimo 70 caratteri ciascuno.')
     return first, last
+
+
+def clean_opening_debt(body):
+    raw=body.get('opening_debt','')
+    opening_cents=money(raw if str(raw or '').strip() else '0')
+    date_input=str(body.get('opening_debt_date') or '').strip()
+    if date_input and opening_cents==0:
+        raise ApiError(400,'Inserisci un debito iniziale se specifichi una data.')
+    if not opening_cents:
+        return 0,None
+    if not date_input:
+        return opening_cents,now_utc()
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',date_input):
+        raise ApiError(400,'La data del debito deve essere nel formato AAAA-MM-GG.')
+    try:
+        old_day=datetime.strptime(date_input,'%Y-%m-%d').date()
+    except ValueError:
+        raise ApiError(400,'Data del debito non valida.')
+    if old_day>datetime.now(ZoneInfo('Europe/Rome')).date():
+        raise ApiError(400,'La data del debito non può essere nel futuro.')
+    return opening_cents,datetime.combine(old_day,datetime.min.time(),tzinfo=timezone.utc).isoformat()
 
 
 def serialize_client(c, row):
@@ -549,13 +583,18 @@ class Handler(BaseHTTPRequestHandler):
                     if path == '/api/clients' and method == 'POST':
                         b = self.body()
                         first, last = clean_client_names(b)
+                        opening_cents,opening_at=clean_opening_debt(b)
                         c.execute('BEGIN IMMEDIATE')
                         dup = c.execute('SELECT id FROM clients WHERE LOWER(first_name)=LOWER(?) AND LOWER(last_name)=LOWER(?)',(first,last)).fetchone()
                         if dup and not b.get('allow_homonym'):
                             raise ApiError(409, 'Cliente con lo stesso nome già presente. Controlla la rubrica; se omonimo, conferma l’inserimento.')
-                        cur = c.execute('INSERT INTO clients(first_name,last_name,created_at) VALUES(?,?,?) RETURNING id',(first,last,now_utc()))
+                        cur = c.execute('INSERT INTO clients(first_name,last_name,created_at,opening_debt_cents,opening_debt_at) VALUES(?,?,?,?,?) RETURNING id',
+                                        (first,last,now_utc(),opening_cents,opening_at))
                         new_id = cur.fetchone()['id']
-                        audit(c,user['id'],'create','client',new_id)
+                        if opening_cents:
+                            reconcile_client(c,new_id)
+                        audit(c,user['id'],'create','client',new_id,
+                              {'opening_debt_cents':opening_cents,'opening_debt_at':opening_at})
                         c.commit()
                         return self.respond(201, {'id': new_id})
                     match = re.fullmatch(r'/api/clients/(\d+)', path)
