@@ -514,3 +514,10 @@ body{background:radial-gradient(ellipse 63% 60% at 87% -4%,rgba(185,135,30,.16),
  .app-layout[class*="cash-station-"] .table th,
  .app-layout[class*="cash-station-"] .panel-head h2{color:#111!important}
 }
+
+/* Rubrica: clienti con saldo positivo, negativo o pari a zero. */
+.app-layout .directory-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+.wallet-kind-radio{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.wallet-kind-radio .radio-card{min-width:0;white-space:normal;line-height:1.35}
+@media(max-width:1100px){.app-layout .directory-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.wallet-kind-radio{grid-template-columns:1fr}.app-layout .directory-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
