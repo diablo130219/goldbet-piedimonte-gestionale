@@ -135,6 +135,17 @@ def init_db():
           );
           CREATE INDEX IF NOT EXISTS ix_movements_client ON movements(client_id,id);
           CREATE INDEX IF NOT EXISTS ix_movements_shift ON movements(shift_id,id);
+          CREATE TABLE IF NOT EXISTS cash_adjustments (
+            id INTEGER PRIMARY KEY,
+            shift_id INTEGER NOT NULL REFERENCES shifts(id),
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            label TEXT NOT NULL,
+            direction TEXT NOT NULL CHECK(direction IN ('in','out')),
+            amount_cents INTEGER NOT NULL CHECK(amount_cents>0),
+            note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+            voided_at TEXT, voided_by INTEGER REFERENCES users(id), void_reason TEXT
+          );
+          CREATE INDEX IF NOT EXISTS ix_cash_adjustments_shift ON cash_adjustments(shift_id,id);
           CREATE TABLE IF NOT EXISTS notifications (
             id INTEGER PRIMARY KEY, client_id INTEGER NOT NULL REFERENCES clients(id),
             kind TEXT NOT NULL CHECK(kind IN ('overdue','paid')),
@@ -278,8 +289,17 @@ def shift_totals(c, shift):
     # integer cents; convert before computing totals or serializing JSON.
     result['entries_cents'] = int(r['credits'])
     result['exits_cents'] = int(r['debits'])
+    extra = c.execute(
+        "SELECT COALESCE(SUM(CASE WHEN direction='in' THEN amount_cents ELSE 0 END),0) AS cash_in,"
+        " COALESCE(SUM(CASE WHEN direction='out' THEN amount_cents ELSE 0 END),0) AS cash_out"
+        " FROM cash_adjustments WHERE shift_id=? AND voided_at IS NULL", (shift['id'],)
+    ).fetchone()
+    result['other_in_cents'] = int(extra['cash_in'])
+    result['other_out_cents'] = int(extra['cash_out'])
+    # Separate cash entries impact the till, never a customer balance.
     result['calculated_cents'] = (result['blue_cents'] + result['initial_cents']
-                                  + result['entries_cents'] - result['exits_cents'])
+                                  + result['entries_cents'] - result['exits_cents']
+                                  + result['other_in_cents'] - result['other_out_cents'])
     return result
 
 
@@ -287,6 +307,13 @@ def shift_movements(c, shift_id):
     return [dict(r) for r in c.execute('''SELECT m.*,cl.first_name,cl.last_name,u.full_name AS operator_name
       FROM movements m JOIN clients cl ON cl.id=m.client_id JOIN users u ON u.id=m.user_id
       WHERE m.shift_id=? ORDER BY m.id DESC''', (shift_id,))]
+
+
+def cash_adjustments_for_shift(c, shift_id):
+    return [dict(r) for r in c.execute(
+        '''SELECT a.*,u.full_name AS operator_name FROM cash_adjustments a
+           JOIN users u ON u.id=a.user_id WHERE a.shift_id=?
+           ORDER BY a.id DESC''', (shift_id,))]
 
 
 class ApiError(Exception):
@@ -447,8 +474,8 @@ class Handler(BaseHTTPRequestHandler):
                         cash = int(args.get('cash',['0'])[0])
                         shift = self.current_shift(c, cash)
                         if not shift:
-                            return self.respond(200, {'shift': None, 'movements': []})
-                        return self.respond(200, {'shift': shift_totals(c,shift), 'movements':shift_movements(c,shift['id'])})
+                            return self.respond(200, {'shift': None, 'movements': [], 'adjustments': []})
+                        return self.respond(200, {'shift': shift_totals(c,shift), 'movements':shift_movements(c,shift['id']), 'adjustments':cash_adjustments_for_shift(c,shift['id'])})
                     if path == '/api/shifts/open' and method == 'POST':
                         b = self.body()
                         cash = int(b.get('cash',0))
@@ -511,6 +538,46 @@ class Handler(BaseHTTPRequestHandler):
                         if not previous: raise ApiError(404,'Cliente non trovato.')
                         c.execute('UPDATE clients SET first_name=?,last_name=? WHERE id=?',(first,last,cid))
                         audit(c,user['id'],'update','client',cid,{'old_name':previous['first_name']+' '+previous['last_name'],'new_name':first+' '+last})
+                        c.commit()
+                        return self.respond(200,{'ok':True})
+                    if path == '/api/cash-adjustments' and method == 'POST':
+                        b=self.body()
+                        sid=int(b.get('shift_id',0))
+                        label=' '.join(str(b.get('label') or '').split())
+                        direction=str(b.get('direction') or '')
+                        amount=money(b.get('amount',''))
+                        note=str(b.get('note') or '').strip()
+                        if not (2<=len(label)<=120):
+                            raise ApiError(400,'Inserisci una voce di almeno 2 caratteri (massimo 120).')
+                        if direction not in ('in','out'):
+                            raise ApiError(400,'Seleziona entrata (+) oppure uscita (−).')
+                        if amount<=0: raise ApiError(400,'Importo maggiore di zero obbligatorio.')
+                        if len(note)>400: raise ApiError(400,'Nota troppo lunga (massimo 400 caratteri).')
+                        c.execute('BEGIN IMMEDIATE')
+                        shift=self.authorized_shift(c,user,sid)
+                        cur=c.execute('''INSERT INTO cash_adjustments
+                            (shift_id,user_id,label,direction,amount_cents,note,created_at)
+                            VALUES(?,?,?,?,?,?,?) RETURNING id''',
+                            (sid,user['id'],label,direction,amount,note,now_utc()))
+                        adj_id=cur.fetchone()['id']
+                        audit(c,user['id'],'create','cash_adjustment',adj_id,
+                              {'cash':shift['cash_number'],'label':label,'direction':direction,'amount_cents':amount})
+                        c.commit()
+                        return self.respond(201,{'id':adj_id})
+                    match=re.fullmatch(r'/api/cash-adjustments/(\d+)/void',path)
+                    if match and method=='POST':
+                        adj_id=int(match.group(1)); b=self.body()
+                        reason=str(b.get('reason') or '').strip()
+                        if not (3<=len(reason)<=300):
+                            raise ApiError(400,'Indica il motivo dell’annullamento (3-300 caratteri).')
+                        c.execute('BEGIN IMMEDIATE')
+                        adjustment=c.execute('SELECT * FROM cash_adjustments WHERE id=?',(adj_id,)).fetchone()
+                        if not adjustment: raise ApiError(404,'Voce di cassa non trovata.')
+                        if adjustment['voided_at']: raise ApiError(409,'Voce già annullata.')
+                        self.authorized_shift(c,user,adjustment['shift_id'])
+                        c.execute('UPDATE cash_adjustments SET voided_at=?,voided_by=?,void_reason=? WHERE id=?',
+                                  (now_utc(),user['id'],reason,adj_id))
+                        audit(c,user['id'],'void','cash_adjustment',adj_id,{'reason':reason})
                         c.commit()
                         return self.respond(200,{'ok':True})
                     if path == '/api/movements' and method == 'POST':
@@ -585,7 +652,7 @@ class Handler(BaseHTTPRequestHandler):
                         sid=int(match.group(1))
                         shift=c.execute('''SELECT s.*,u.full_name AS operator_name FROM shifts s JOIN users u ON u.id=s.user_id WHERE s.id=?''',(sid,)).fetchone()
                         if not shift: raise ApiError(404,'Distinta non trovata.')
-                        return self.respond(200,{'shift':shift_totals(c,shift),'movements':shift_movements(c,sid)})
+                        return self.respond(200,{'shift':shift_totals(c,shift),'movements':shift_movements(c,sid),'adjustments':cash_adjustments_for_shift(c,sid)})
                     if path == '/api/notifications' and method == 'GET':
                         c.execute('BEGIN IMMEDIATE')
                         refresh_overdues(c)
@@ -656,9 +723,9 @@ class Handler(BaseHTTPRequestHandler):
                             raise ApiError(403, 'Password amministratore non corretta.')
                         c.execute('BEGIN IMMEDIATE')
                         counts = {table: int(c.execute('SELECT COUNT(*) AS n FROM '+table).fetchone()['n'])
-                                  for table in ('clients','shifts','movements','notifications')}
+                                  for table in ('clients','shifts','movements','cash_adjustments','notifications')}
                         # Dependents first. Accounts, sessions, settings and branded logo survive.
-                        for table in ('notification_reads','notifications','movements','shifts','clients','audit'):
+                        for table in ('notification_reads','notifications','cash_adjustments','movements','shifts','clients','audit'):
                             c.execute('DELETE FROM '+table)
                         audit(c,user['id'],'reset_test_data','system',None,counts)
                         c.commit()
@@ -769,7 +836,7 @@ class Handler(BaseHTTPRequestHandler):
 def postgres_backup(c):
     # Private administrator-only export. Contains names and password hashes;
     # store encrypted, never publish in GitHub or send over messaging.
-    table_names = ('users','clients','shifts','movements','notifications',
+    table_names = ('users','clients','shifts','movements','cash_adjustments','notifications',
                    'notification_reads','audit','brand_assets')
     tables = {}
     for name in table_names:
