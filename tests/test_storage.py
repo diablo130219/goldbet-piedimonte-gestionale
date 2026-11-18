@@ -35,7 +35,7 @@ class PostgreSQLCompatibility(unittest.TestCase):
             def fetchone(self):
                 if 'FROM cash_adjustments' in self.sql:
                     return {'cash_in': Decimal('0'), 'cash_out': Decimal('0')}
-                return {'credits': Decimal('8000'), 'debits': Decimal('1500')}
+                return {'credits': Decimal('8000'), 'debits': Decimal('1500'), 'winnings': Decimal('0'), 'withdrawals': Decimal('0')}
 
         shift = {'id': 13, 'green_cents': 289085, 'red_cents': 36137,
                  'initial_cents': 32525}

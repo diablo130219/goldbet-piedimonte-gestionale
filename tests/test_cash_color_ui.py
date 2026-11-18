@@ -45,7 +45,8 @@ class CashColorUiTest(unittest.TestCase):
         self.assertIn('--station-hero:linear-gradient(113deg,#ffdbc1', css)
         for element in ('.welcome-banner','.btn-primary','.nav-link.active','.closing-hero','.client-identity-hero','.cash-adjustment-panel','.topbar'):
             self.assertIn(element, css)
-        self.assertIn('theme-full-cassa-20261118-v1',html)
+        self.assertIn('app.js?v=',html)
+        self.assertIn('signature.css?v=',html)
         self.assertIn("Monetary semantics deliberately remain",css)
 
 if __name__ == '__main__':

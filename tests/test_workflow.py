@@ -67,7 +67,7 @@ class TestWorkflow(unittest.TestCase):
         self.assertEqual(self.api(two,'/api/clients')['clients'][0]['debt_cents'],15000)
         notices=self.api(one,'/api/notifications')['notifications']
         self.assertEqual(len([n for n in notices if n['kind']=='overdue']),1)
-        self.assertEqual(self.api(two,'/api/movements',{'shift_id':s2,'client_id':client,'kind':'credit','amount':'151,00'})['status'],400)
+        self.assertEqual(self.api(two,'/api/movements',{'shift_id':s2,'client_id':client,'kind':'withdrawal','amount':'151,00'})['status'],400)
         # The oldest debt is now fully covered; the younger debt hasn't reached 7 days.
         self.api(one,'/api/movements',{'shift_id':s1,'client_id':client,'kind':'credit','amount':'100,00'})
         self.assertEqual(len([n for n in self.api(one,'/api/notifications')['notifications'] if n['kind']=='overdue']),0)
